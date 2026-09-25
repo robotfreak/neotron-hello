@@ -42,7 +42,7 @@ GLYPHS = {
 }
 
 TEXT = "NEOTRON PICO"
-TEXT_ROW, TEXT_COL = 14, 6
+TEXT_ROW, TEXT_COL = 10, 6
 FG = (15 << 2) | (15 << 6)   # Gelb
 BG = 0b1111 << 10            # Blau (Vollbild-Hintergrund, ECO-Schutz)
 SCALE = 4   # Font-Pixel = 2 Bildschirmpixel (DMA-Last halbiert)
@@ -87,8 +87,8 @@ try:
             buf.append(W_FRONT)
             buf.append(W_SYNC)
             buf.append(W_BACK)
-            if TEXT_ROW * 8 <= vline < (TEXT_ROW + 1) * 8:
-                frow = vline - TEXT_ROW * 8
+            if TEXT_ROW * 8 <= vline < TEXT_ROW * 8 + 8 * SCALE:
+                frow = (vline - TEXT_ROW * 8) // SCALE
                 rc = [BG] * 640
                 for ch_idx, ch in enumerate(TEXT):
                     bits = GLYPHS[ord(ch)][frow]
