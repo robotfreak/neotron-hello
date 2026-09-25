@@ -45,7 +45,7 @@ TEXT = "NEOTRON PICO"
 TEXT_ROW, TEXT_COL = 2, 8
 FG = (15 << 2) | (15 << 6)
 BG = 0
-SCALE = 2   # Font-Pixel = 2 Bildschirmpixel (DMA-Last halbiert)
+SCALE = 4   # Font-Pixel = 2 Bildschirmpixel (DMA-Last halbiert)
 
 timing_pio = """
     pull
