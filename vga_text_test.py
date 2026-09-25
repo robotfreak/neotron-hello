@@ -66,7 +66,8 @@ try:
         return (((c_ - 5) << 14) | b0 | (b1 << 1)) & 0xFFFFFFFF
 
     W_FRONT, W_SYNC, W_BACK = tw(CY_FRONT), tw(CY_SYNC, True), tw(CY_BACK)
-    W_BLACK_VIS = tw(CY_VIS)
+    W_BLACK_VIS = tw(CY_VIS) | BG      # Hintergrund-Zeilen: BLAU (ECO-Schutz)
+    W_BLANK = tw(CY_VIS)               # VBLANK: Farbe 0 (ausgeblendet)
 
     def rle_words(colors):
         out = []
