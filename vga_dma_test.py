@@ -22,13 +22,11 @@ import array
 
 # --- Timing-Programm: 1 Wort = 1 Periodenabschnitt mit H/V-Pegeln ---
 timing_pio = """
-    wrap_target
     pull
     out pins, 2
     out x, 14
 period_loop:
     jmp x-- period_loop
-    wrap
 """
 timing_prog = adafruit_pioasm.assemble(timing_pio)
 
