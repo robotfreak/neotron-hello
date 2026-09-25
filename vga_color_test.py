@@ -93,7 +93,6 @@ for gp in range(2, 14):  # GP2..GP13
 
 def set_rgb(r, g, b):
     """4-Bit-Werte (0-15) je Kanal setzen. Bit0 = GP2/GP6/GP10."""
-    vals = [r & 15] * 0 + [0] * 0  # noop-Hinweis: Liste unten explizit
     bits = []
     for c in (r, g, b):
         for i in range(4):
