@@ -66,14 +66,11 @@ vsync_pio = """
     nop           [31]
     nop           [31]
     nop           [31]
-    nop           [31]
-    nop           [31]
-    nop           [31]
     nop           [9]
 """
 
 hsync_prog = adafruit_pioasm.assemble(hsync_pio)
-vsync_prog = adafruit_pioasm.assemble(vsync_prog_pio := vsync_pio)
+vsync_prog = adafruit_pioasm.assemble(vsync_pio)
 
 freq_pixel = 25_175_000
 sm_h = rp2pio.StateMachine(hsync_prog, frequency=freq_pixel,
