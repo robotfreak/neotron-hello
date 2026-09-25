@@ -45,6 +45,7 @@ TEXT = "NEOTRON PICO"
 TEXT_ROW, TEXT_COL = 2, 8
 FG = (15 << 2) | (15 << 6)
 BG = 0
+SCALE = 2   # Font-Pixel = 2 Bildschirmpixel (DMA-Last halbiert)
 
 timing_pio = """
     pull
@@ -92,9 +93,11 @@ try:
                     bits = GLYPHS[ord(ch)][frow]
                     base = (TEXT_COL + ch_idx) * 8
                     for px in range(8):
-                        col = base + px
-                        if 0 <= col < 640:
-                            rc[col] = FG if ((bits >> px) & 1) else BG
+                        col = base + px * SCALE
+                        on = FG if ((bits >> px) & 1) else BG
+                        for k in range(SCALE):
+                            if 0 <= col + k < 640:
+                                rc[col + k] = on
                 buf.extend(rle_words(rc))
             else:
                 buf.append(W_BLACK_VIS)
