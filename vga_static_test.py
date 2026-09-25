@@ -63,10 +63,6 @@ vsync_pio = """
     nop           [31]
     nop           [31]
     nop           [31]
-    nop           [31]
-    nop           [31]
-    nop           [31]
-    nop           [31]
     nop           [9]
 """
 
