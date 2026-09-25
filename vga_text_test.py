@@ -42,7 +42,7 @@ GLYPHS = {
 }
 
 TEXT = "NEOTRON PICO"
-TEXT_ROW, TEXT_COL = 2, 8
+TEXT_ROW, TEXT_COL = 14, 6
 FG = (15 << 2) | (15 << 6)   # Gelb
 BG = 0b1111 << 10            # Blau (Vollbild-Hintergrund, ECO-Schutz)
 SCALE = 4   # Font-Pixel = 2 Bildschirmpixel (DMA-Last halbiert)
@@ -107,8 +107,6 @@ try:
         for _ in range(2):
             buf.append(W_FRONT); buf.append(W_SYNC); buf.append(W_BACK); buf.append(tw(CY_VIS, vl=True))
         for _ in range(33):
-            buf.append(W_FRONT); buf.append(W_SYNC); buf.append(W_BACK); buf.append(W_BLANK)
-        for _ in range(2):
             buf.append(W_FRONT); buf.append(W_SYNC); buf.append(W_BACK); buf.append(W_BLANK)
         return buf
 
