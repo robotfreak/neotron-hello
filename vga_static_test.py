@@ -76,7 +76,18 @@ sm_v = rp2pio.StateMachine(vsync_prog, frequency=freq_pixel // 800,
                            first_set_pin=board.GP1, set_pin_count=1)
 print("Sync aktiv (640x480@60).")
 
-# Nur Rot-Kanal: GP2..GP5
+# --- Steuerpins (aus Neotron-BIOS main.rs uebernommen) ---
+# GP21 = nOUTPUT_EN: HIGH = gepufferte Ausgaenge des PCB aktiv
+# (ohne dieses Signal bleibt der RGB-Pfad zum VGA-Port inaktiv!)
+try:
+    noutput_en = digitalio.DigitalInOut(board.GP21)
+    noutput_en.direction = digitalio.Direction.OUTPUT
+    noutput_en.value = True
+    print("GP21 nOUTPUT_EN = HIGH (Buffer aktiv)")
+except Exception as e:
+    print("WARN: GP21 nicht setzbar:", e)
+
+# --- Nur Rot-Kanal: GP2..GP5 ---
 red_pins = []
 for gp in range(2, 6):
     p = digitalio.DigitalInOut(getattr(board, "GP%d" % gp))
