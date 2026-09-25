@@ -1,11 +1,14 @@
-# vga_static_test.py - Diagnose: Sync + EINE statische Farbe, sonst NICHTS.
+# vga_static_test.py - Diagnose: Sync + EINE statische Farbe + LED-Heartbeat
 #
-# Ziel: Feststellen, ob statische RGB-Level allein das Sync-Problem ausloesen.
-#   - Wenn ROT DAUERHAFT stabil -> Problem liegt im Farbwechsel-/Rampe-Code
-#   - Wenn ROT auch hier flackert -> Monitor-/Timing-Thema (Polaritaet/Frequenz)
+# LED am Pico 2 blinkt 1x/s = Code laeuft definitiv (kein Serial noetig!)
+#   LED AN dauerhaft = Crash/Reload -> Problem im Code
+#   LED blinkt, Monitor schwarz -> RGB-Pfad-Thema (Buffer/Pins)
 #
-# Serial zeigt alle 2 s "alive N" - damit koennen wir korrelieren,
-# ob das Blitzen mit dem Code-Zyklus oder dem Monitor zusammenhaengt.
+# Belegung (Neotron-Pico-Schematic + BIOS):
+#   GP0=HSYNC GP1=VSYNC (PIO, negativ, 640x480@60 wie Neotron-BIOS)
+#   GP2-5=Rot, GP6-9=Gruen, GP10-13=Blau (4 Bit R-2R je Kanal)
+#   GP21=nOUTPUT_EN (HIGH = PCB-Ausgangspuffer aktiv, aus BIOS main.rs)
+#   LED = GP25
 #
 # Als code.py auf CIRCUITPY. Beenden: Strg+C.
 
@@ -63,11 +66,14 @@ vsync_pio = """
     nop           [31]
     nop           [31]
     nop           [31]
+    nop           [31]
+    nop           [31]
+    nop           [31]
     nop           [9]
 """
 
 hsync_prog = adafruit_pioasm.assemble(hsync_pio)
-vsync_prog = adafruit_pioasm.assemble(vsync_pio)
+vsync_prog = adafruit_pioasm.assemble(vsync_prog_pio := vsync_pio)
 
 freq_pixel = 25_175_000
 sm_h = rp2pio.StateMachine(hsync_prog, frequency=freq_pixel,
@@ -76,9 +82,7 @@ sm_v = rp2pio.StateMachine(vsync_prog, frequency=freq_pixel // 800,
                            first_set_pin=board.GP1, set_pin_count=1)
 print("Sync aktiv (640x480@60).")
 
-# --- Steuerpins (aus Neotron-BIOS main.rs uebernommen) ---
-# GP21 = nOUTPUT_EN: HIGH = gepufferte Ausgaenge des PCB aktiv
-# (ohne dieses Signal bleibt der RGB-Pfad zum VGA-Port inaktiv!)
+# --- GP21 nOUTPUT_EN = HIGH (PCB-Ausgangspuffer aktiv, aus BIOS) ---
 try:
     noutput_en = digitalio.DigitalInOut(board.GP21)
     noutput_en.direction = digitalio.Direction.OUTPUT
@@ -86,6 +90,11 @@ try:
     print("GP21 nOUTPUT_EN = HIGH (Buffer aktiv)")
 except Exception as e:
     print("WARN: GP21 nicht setzbar:", e)
+
+# --- LED als Lebenszeichen ---
+led = digitalio.DigitalInOut(board.GP25)
+led.direction = digitalio.Direction.OUTPUT
+led.value = True  # AN dauerhaft zuerst
 
 # --- Nur Rot-Kanal: GP2..GP5 ---
 red_pins = []
@@ -97,18 +106,19 @@ for gp in range(2, 6):
 for pin in red_pins:
     pin.value = True   # volle Rot-Stufe (15)
 
-print("ROT statisch gesetzt - jetzt darf nichts mehr laufen.")
-print("Beobachte den Monitor: stabil = RGB-Wechsel war das Problem.")
+print("ROT statisch gesetzt.")
 
 n = 0
 try:
     while True:
-        time.sleep(2)
+        time.sleep(1)
         n += 1
+        led.value = not led.value  # Blinken = Code lebt
         print("alive", n)
 except KeyboardInterrupt:
     for pin in red_pins:
         pin.value = False
+    led.value = False
     sm_h.deinit()
     sm_v.deinit()
     print("Gestoppt.")
