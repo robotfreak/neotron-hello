@@ -14,8 +14,7 @@ import time
 
 # HSYNC: 800 Takte/Zeile, 96 low + 704 high. IRQ4 = Zeilenanfang-Marke,
 # wird nach der Low-Phase wieder gecleared (Handshake mit VSYNC-SM).
-hsync_pio = """
-    irq set 4     [31]
+hsync_pio = """    irq 4         [31]
     set pins, 0   [31]
     set pins, 0   [31]
     irq clear 4   [31]
@@ -39,21 +38,32 @@ hsync_pio = """
     set pins, 1   [31]
     set pins, 1   [31]
     set pins, 1   [31]
-    set pins, 1   [30]
+    set pins, 1   [31]
 """
 
 # VSYNC: wartet auf IRQ4 (Zeilenanfang), 2 Zeilen low, dann 523 high.
 # 1 Takt pro Zeile, getaktet durch den HSYNC-IRQ -> exakt phasengekoppelt.
-vsync_pio = """
-    wait 1 irq 4
+vsync_pio = """    wait 1 irq 4
     set pins, 0
-    wait 1 irq 4
     nop
-    wait 1 irq 4
     set pins, 1
-    set y, 521
-    wait 1 irq 4
-    jmp y-- 1
+    nop           [31]
+    nop           [31]
+    nop           [31]
+    nop           [31]
+    nop           [31]
+    nop           [31]
+    nop           [31]
+    nop           [31]
+    nop           [31]
+    nop           [31]
+    nop           [31]
+    nop           [31]
+    nop           [31]
+    nop           [31]
+    nop           [31]
+    nop           [31]
+    nop           [8]
 """
 
 hsync_prog = adafruit_pioasm.assemble(hsync_pio)
