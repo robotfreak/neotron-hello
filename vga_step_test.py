@@ -79,20 +79,30 @@ noutput_en = digitalio.DigitalInOut(board.GP21)
 noutput_en.direction = digitalio.Direction.OUTPUT
 noutput_en.value = True
 
-print("Phase A: VOLLES ROT (Beweis-Referenz) - 10 s")
+def phase_signal(n):
+    led.value = False
+    time.sleep(0.4)
+    for _ in range(n):
+        led.value = True; time.sleep(0.15); led.value = False; time.sleep(0.15)
+    led.value = True
+
+print("Phase A: VOLLES ROT (Beweis-Referenz) - 30 s")
 frameA = build_frame(RED)
+phase_signal(1)
 sm.background_write(loop=frameA)
-time.sleep(10)
+time.sleep(30)
 
-print("Phase B: VOLLES BLAU - 10 s")
+print("Phase B: VOLLES BLAU - 30 s")
 frameB = build_frame(BLUE)
+phase_signal(2)
 sm.background_write(loop=frameB)
-time.sleep(10)
+time.sleep(30)
 
-print("Phase C: BLAU + gelbe Bloecke oben (RLE) - 10 s")
+print("Phase C: BLAU + gelbe Bloecke oben (RLE) - 30 s")
 frameC = build_frame(BLUE, text_line=True)
+phase_signal(3)
 sm.background_write(loop=frameC)
-time.sleep(10)
+time.sleep(30)
 
 print("Phase D: BLAU + echtes RLE-Textzeilen-Muster - 10 s")
 # Zeile 16: abwechselnd gelb/blau im 8-Pixel-Takt (RLE-Raten-Test)
@@ -112,9 +122,10 @@ for _ in range(2):
     frameD.append(tw(96)); frameD.append(tw(576, True)); frameD.append(tw(CY_VIS, vl=True))
 for _ in range(33):
     frameD.append(tw(96)); frameD.append(tw(576, True)); frameD.append(tw(CY_VIS))
-print("Phase D: Streifen-RLE (16-px-Runs) - 10 s")
+print("Phase D: Streifen-RLE (16-px-Runs) - 30 s")
+phase_signal(4)
 sm.background_write(loop=frameD)
-time.sleep(10)
+time.sleep(30)
 
 print("Fertig. Beobachtungen an Hermes melden!")
 print("A:", "ROT?" , " B:", "BLAU?", " C:", "Bloecke?", " D:", "Streifen?")
