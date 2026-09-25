@@ -43,8 +43,8 @@ GLYPHS = {
 
 TEXT = "NEOTRON PICO"
 TEXT_ROW, TEXT_COL = 2, 8
-FG = (15 << 2) | (15 << 6)
-BG = 0
+FG = (15 << 2) | (15 << 6)   # Gelb
+BG = 0b1111 << 10            # Blau (Vollbild-Hintergrund, ECO-Schutz)
 SCALE = 4   # Font-Pixel = 2 Bildschirmpixel (DMA-Last halbiert)
 
 timing_pio = """
