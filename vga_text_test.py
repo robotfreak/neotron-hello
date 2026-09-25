@@ -105,7 +105,7 @@ try:
         for _ in range(10):
             buf.append(W_FRONT); buf.append(W_SYNC); buf.append(W_BACK); buf.append(W_BLANK)
         for _ in range(2):
-            buf.append(W_FRONT); buf.append(W_SYNC); buf.append(W_BACK); buf.append(tw(CY_VIS, vsync_low=True))
+            buf.append(W_FRONT); buf.append(W_SYNC); buf.append(W_BACK); buf.append(tw(CY_VIS, vl=True))
         for _ in range(33):
             buf.append(W_FRONT); buf.append(W_SYNC); buf.append(W_BACK); buf.append(W_BLANK)
         for _ in range(2):
