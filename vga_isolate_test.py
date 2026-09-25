@@ -44,11 +44,11 @@ for vline in range(480):
     frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_BACK)
     frame.append(W_VIS_RED if vline < 8 else W_VIS_BLACK)
 for _ in range(10):
-    frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_VIS_BLACK)
+    frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_BACK); frame.append(W_VIS_BLACK)
 for _ in range(2):
-    frame.append(W_FRONT); frame.append(W_SYNC); frame.append(tw(CY_VIS, vl=True))
+    frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_BACK); frame.append(tw(CY_VIS, vl=True))
 for _ in range(33):
-    frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_VIS_BLACK)
+    frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_BACK); frame.append(W_VIS_BLACK)
 print("Woerter:", len(frame), "=", len(frame) * 4, "Bytes")
 
 sm = rp2pio.StateMachine(

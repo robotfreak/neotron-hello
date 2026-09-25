@@ -59,11 +59,11 @@ def build_frame(vis_color, text_line=False):
         else:
             frame.append(W_VIS)
     for _ in range(10):
-        frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_BLANK)
+        frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_BACK); frame.append(W_BLANK)
     for _ in range(2):
-        frame.append(W_FRONT); frame.append(W_SYNC); frame.append(tw(CY_VIS, vl=True))
+        frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_BACK); frame.append(tw(CY_VIS, vl=True))
     for _ in range(33):
-        frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_BLANK)
+        frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_BACK); frame.append(W_BLANK)
     return frame
 
 sm = rp2pio.StateMachine(
@@ -117,11 +117,11 @@ for vline in range(480):
     else:
         frameD.append(tw(CY_VIS) | BLUE)
 for _ in range(10):
-    frameD.append(tw(96)); frameD.append(tw(576, True)); frameD.append(tw(CY_VIS))
+    frameD.append(tw(96)); frameD.append(tw(576, True)); frameD.append(tw(288)); frameD.append(tw(CY_VIS))
 for _ in range(2):
-    frameD.append(tw(96)); frameD.append(tw(576, True)); frameD.append(tw(CY_VIS, vl=True))
+    frameD.append(tw(96)); frameD.append(tw(576, True)); frameD.append(tw(288)); frameD.append(tw(CY_VIS, vl=True))
 for _ in range(33):
-    frameD.append(tw(96)); frameD.append(tw(576, True)); frameD.append(tw(CY_VIS))
+    frameD.append(tw(96)); frameD.append(tw(576, True)); frameD.append(tw(288)); frameD.append(tw(CY_VIS))
 print("Phase D: Streifen-RLE (16-px-Runs) - 30 s")
 phase_signal(4)
 sm.background_write(loop=frameD)
