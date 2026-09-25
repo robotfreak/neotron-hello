@@ -92,7 +92,7 @@ try:
                 rc = [BG] * 640
                 for ch_idx, ch in enumerate(TEXT):
                     bits = GLYPHS[ord(ch)][frow]
-                    base = (TEXT_COL + ch_idx) * 8
+                    base = (TEXT_COL + ch_idx) * 8 * SCALE
                     for px in range(8):
                         col = base + px * SCALE
                         on = FG if ((bits >> px) & 1) else BG
@@ -129,8 +129,13 @@ try:
     noutput_en.value = True
     print("GP21 nOUTPUT_EN = HIGH")
 
+    # Workaround (Phase-D-Beweis): ERSTER background_write haengt oft;
+    # ein zweiter Aufruf aktiviert die DMA-Kette sauber.
+    dummy = array.array("I", (W_FRONT, W_SYNC, W_BACK, W_BLANK) * 525)
+    sm.background_write(loop=dummy)
+    time.sleep(0.5)
     sm.background_write(loop=frame)
-    print("Textmodus aktiv (DMA-Loop, 59,5 Hz).")
+    print("Textmodus aktiv (DMA-Loop, 59,52 Hz).")
 
     n = 0
     while True:
