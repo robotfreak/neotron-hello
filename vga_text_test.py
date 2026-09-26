@@ -42,9 +42,9 @@ GLYPHS = {
 }
 
 TEXT = "NEOTRON PICO"
-TEXT_ROW, TEXT_COL = 25, 6   # f=200-231; bei funktionierendem VSYNC-Lock: Screen 200-231 (Bildmitte-oben)
-FG = (15 << 2) | (15 << 6)   # Gelb
-BG = 0b1111 << 10            # Blau (Vollbild-Hintergrund, ECO-Schutz)
+TEXT_ROW, TEXT_COL = 25, 6   # f=200-231; bei sauberem Lock (weiss): Screen 200-231 (Bildmitte-oben)
+FG = 0b1111 << 10            # Blau (Text auf Weiss - max Kontrast)
+BG = (15 << 2) | (15 << 6) | (15 << 10)  # WEISS (hell = bewiesener Sync-Lock-Modus wie beim roten Farb-Test)
 SCALE = 4   # Font-Pixel = 2 Bildschirmpixel (DMA-Last halbiert)
 
 timing_pio = """
