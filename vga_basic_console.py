@@ -140,24 +140,17 @@ print("VGA aktiv (weisser BG, 2 Textzeilen).")
 WORD_LIMIT = 3068   # bewiesene Kipp-Grenze (v9 lief exakt hierunter)
 
 def show(text_a=None, text_b=None):
-    """Beide Zeilen rendern (None = unveraendert) + DMA neu anstossen.
-    Kippt der Frame ueber die Woerter-Grenze, wird der Text gekuerzt."""
-    global frame, cur_a, cur_b
-    na = cur_a if text_a is None else text_a
-    nb = cur_b if text_b is None else text_b
-    frame = build_frame(na, nb)
-    while len(frame) > WORD_LIMIT and (na or nb):
-        # laengste Zeile um 2 Zeichen kuerzen, erneut bauen
-        if len(nb) > len(na) and nb:
-            nb = nb[:-2]
-        else:
-            na = na[:-2]
-        cur_a, cur_b = na, nb
-        frame = build_frame(na, nb)
-    cur_a, cur_b = na, nb
-    sm.background_write(loop=frame)
+    """Zeilen nur QUEUE'N; der zentrale UI-Loop rendert max 1x/100ms.
+    Mindestens 6 saubere DMA-Loops zwischen Writes (bewiesener Rhythmus)."""
+    global pend_a, pend_b, pend
+    if text_a is not None:
+        pend_a = text_a
+    if text_b is not None:
+        pend_b = text_b
+    pend = True
 
 cur_a, cur_b = "", ""
+pend_a, pend_b, pend = "", "", False
 
 # ============ BMC-Tastatur (bewiesener Code) ============
 spi = busio.SPI(board.GP18, MOSI=board.GP19, MISO=board.GP16)
@@ -250,9 +243,9 @@ shift = [False]
 
 def console_out(s):
     """tinybasic out() -> VGA-Zeile B + Serial-Spiegel."""
-    for part in s.split("\n"):
-        if part:
-            show(None, part[:MAX_CHARS])
+    parts = [p for p in s.split("\n") if p]
+    if parts:
+        show(None, parts[-1][:MAX_CHARS])
     print(s, end="")
 
 tinybasic.out = console_out
@@ -297,7 +290,25 @@ def bmc_readline(prompt=""):
                                 line += ch
                         show(prompt + line + "_", None)
                     i += 1
+        ui_tick()
         time.sleep(0.02)
+
+def ui_tick():
+    """Zentraler Renderer: max 1 Write pro 100ms, nur bei Aenderung."""
+    global pend, frame
+    if not pend:
+        return
+    na, nb = pend_a, pend_b
+    frame = build_frame(na, nb)
+    while len(frame) > WORD_LIMIT and (na or nb):
+        if len(nb) > len(na) and nb:
+            nb = nb[:-2]
+        else:
+            na = na[:-2]
+        frame = build_frame(na, nb)
+    cur_a, cur_b = na, nb
+    sm.background_write(loop=frame)
+    pend = False
 
 builtins.input = bmc_readline
 
