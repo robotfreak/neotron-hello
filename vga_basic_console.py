@@ -35,7 +35,7 @@ def blink(n, dt=0.12):
         time.sleep(dt)
 
 blink(3)
-print("BASIC-Konsole: Initialisiere...")
+print("[1] Start")
 
 # ============ VGA-Frame (bewiesene Struktur) ============
 timing_pio = """
@@ -46,6 +46,7 @@ timing_pio = """
 period_loop:
     jmp x-- period_loop
 """
+print("[2] PIO-Asm...")
 timing_prog = adafruit_pioasm.assemble(timing_pio)
 
 def tw(c_, hl=False, vl=False):
@@ -118,9 +119,11 @@ def build_frame(text_a, text_b):
         f.append(W_FRONT); f.append(W_SYNC); f.append(W_BACK); f.append(W_BLANK)
     return f
 
+print("[3] Frame-Bau...")
 frame = build_frame("", "")
 print("Woerter:", len(frame), "=", len(frame) * 4, "Bytes")
 
+print("[4] StateMachine...")
 sm = rp2pio.StateMachine(
     timing_prog,
     frequency=150_000_000,
@@ -134,10 +137,12 @@ noutput_en = digitalio.DigitalInOut(board.GP21)
 noutput_en.direction = digitalio.Direction.OUTPUT
 noutput_en.value = True
 
+print("[5] Dummy-Write...")
 dummy = array.array("I", (W_FRONT, W_SYNC, W_BACK, W_BLANK) * 525)
 sm.background_write(loop=dummy)
 time.sleep(0.5)
 sm.background_write(loop=frame)
+print("[6] VGA ok")
 print("VGA aktiv (weisser BG, 2 Textzeilen).")
 
 WORD_LIMIT = 3068   # bewiesene Kipp-Grenze (v9 lief exakt hierunter)
@@ -156,6 +161,7 @@ cur_a, cur_b = "", ""
 pend_a, pend_b, pend = "", "", False
 
 # ============ BMC-Tastatur (bewiesener Code) ============
+print("[7] SPI...")
 spi = busio.SPI(board.GP18, MOSI=board.GP19, MISO=board.GP16)
 while not spi.try_lock():
     pass
@@ -179,6 +185,7 @@ def mcp23s17_write(reg, value):
     finally:
         cs.value = True
 
+print("[8] MCP23S17...")
 mcp23s17_write(0x00, 0x00)
 mcp23s17_write(0x01, 0xFF)
 mcp23s17_write(0x12, 0x00)
@@ -240,6 +247,7 @@ SC[0x4C] = (';', ':'); SC[0x52] = ("'", '"'); SC[0x4E] = ('-', '_')
 SC[0x55] = ('=', '+')
 
 # ============ Tiny-BASIC-Kopplung ============
+print("[9] tinybasic import...")
 import tinybasic
 
 shift = [False]
@@ -324,6 +332,7 @@ def ui_tick():
 
 builtins.input = bmc_readline
 
+print("[10] repl()")
 print("Tiny-BASIC auf VGA+PS/2. Tipp los!")
 try:
     tinybasic.repl()
