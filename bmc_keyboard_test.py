@@ -60,7 +60,7 @@ led.value = True
 use_alt = False
 buf1 = bytearray(1)
 
-def bmc_transfer(req_bytes, response_len):
+def bmc_transfer(req_bytes, response_len, quiet=False):
     """Request senden, Antwort lesen (BIOS-Protokoll)."""
     global use_alt
     cs.value = False
@@ -79,11 +79,10 @@ def bmc_transfer(req_bytes, response_len):
                 result = buf1[0]
                 break
             # sonst: 0xFF-Clock, weiterschieben
-        if retry >= 8 and result is None:
-            print("  erste 8 gelesene Bytes:", [hex(b) for b in seen])
+        if result is None and not quiet and retry >= 8:
+            print("  erste 8 gelesene Bytes:", [hex(b) for b in seen], "(0xFF=BMC schweigt, 0x00=MISO gezogen)")
+            return None
         if result is None:
-            # DIAGNOSE: Erste 8 geclockte Bytes ausgeben
-            print("  Antwort-Clock: keine Status-Byte 0xA0-0xA4 gesehen")
             return None
         # Rest der Antwort (incl. CRC) lesen
         rest = bytearray(response_len - 1)
@@ -92,13 +91,13 @@ def bmc_transfer(req_bytes, response_len):
     finally:
         cs.value = True
 
-def bmc_read(register, length):
+def bmc_read(register, length, quiet=False):
     global use_alt
     t = 0xC1 if use_alt else 0xC0
     use_alt = not use_alt
     req = bytes([t, register, length])
     req += bytes([crc8(req)])
-    return bmc_transfer(req, length + 2)
+    return bmc_transfer(req, length + 2, quiet)
 
 def mcp23s17_write(reg, value):
     """Direkt an MCP23S17 (nSPI_CS_IO = GP17, Opcode 0x40 = Write)."""
@@ -137,7 +136,7 @@ try:
     while True:
         # IRQ-Leitung pruefen (LOW = pending)
         if nirq.value == False:
-            resp = bmc_read(0x40, 9)
+            resp = bmc_read(0x40, 9, quiet=True)
             if resp and resp[0] == 0xA0 and resp[1] > 0:
                 n_scans = resp[1]
                 print("Scancodes:", resp[2:2 + n_scans].hex())
