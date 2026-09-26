@@ -28,7 +28,7 @@ def blink(n, dt=0.12):
         time.sleep(dt)
 
 blink(3)
-print("Koeder-Test (2 RLE-Streifen f=470)...")
+print("Koeder-Test MITTE (2 RLE-Streifen f=100)...")
 import math
 
 timing_pio = """
@@ -59,7 +59,7 @@ W_WHITE = W_BLANK | WHITE
 
 TEXT = "NEOTRON PICO"
 TEXT_ROW = 25          # f=200-227
-BAIT_ROW = 470         # Koeder: f=470-471 (2 Zeilen)
+BAIT_ROW = 100         # Koeder: f=100-101 (2 Zeilen, MITTE - weit weg von VBLANK)
 SCALE = 4
 
 GLYPHS = {
@@ -140,7 +140,7 @@ dummy = array.array("I", (W_FRONT, W_SYNC, W_BACK, W_BLANK) * 525)
 sm.background_write(loop=dummy)
 time.sleep(0.5)
 sm.background_write(loop=frame)
-print("Koeder aktiv. Erwartung: Text bei ~40% Bildhoehe, feine Streifen unten.")
+print("Koeder MITTE aktiv. Erwartung: Streifen unten ODER Mitte, Text wo er ist.")
 n = 0
 while True:
     time.sleep(1)
