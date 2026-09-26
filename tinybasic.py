@@ -551,4 +551,8 @@ def repl():
             out('Fehler: %s\n' % e)
 
 
-repl()
+# repl() wird vom Hauptprogramm (vga_basic_console) aufgerufen -
+# nicht mehr automatisch beim Import (sonst blockiert input() im Import,
+# bevor der input-Shim gesetzt ist).
+if __name__ == "__main__":
+    repl()

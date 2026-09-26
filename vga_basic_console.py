@@ -20,7 +20,6 @@ import digitalio
 import microcontroller
 import time
 import array
-import builtins
 import font8x8
 
 FONT = font8x8.FONT
@@ -330,7 +329,8 @@ def ui_tick():
     gc.collect()
     print("ui_tick: build+write %d ms, %d Woerter" % ((time.monotonic() - t0) * 1000, len(frame)))
 
-builtins.input = bmc_readline
+# Shim: tinybasic-Namensraum (Modul-Attr schlaegt Builtin dort)
+tinybasic.input = bmc_readline
 
 print("[10] repl()")
 print("Tiny-BASIC auf VGA+PS/2. Tipp los!")
