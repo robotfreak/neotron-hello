@@ -139,11 +139,9 @@ def line_words(text):
     return rows
 
 def build_frame(text_a, text_b):
-    """Kompletter Frame: 480 sichtbare Zeilen (2 Textzeilen), 45 VBLANK.
-    text_a -> Zeile A (Eingabe), text_b -> Zeile B (Ausgabe).
-    Alle 64 Zeilen time.sleep(0): VM-yield, USB/CTRL-C bleibt bedienbar."""
+    """Kompletter Frame: BEWIESENE v9-Struktur - Textzeilen als echte
+    RLE-Zeilen (variable Wortzahl!), alle anderen Zeilen je 1 Wort."""
     f = array.array("I")
-    spans.clear()
     for vline in range(480):
         if vline % 64 == 63:
             time.sleep(0)   # VM-yield: USB/Keyboard-IRQs durchlassen
@@ -155,13 +153,18 @@ def build_frame(text_a, text_b):
                 break
         if tri is not None:
             frow = (vline - TEXT_ROWS[tri] * 8) // SCALE
-            if vline == TEXT_ROWS[tri] * 8:
-                span = []
-            fitted = fit_words(rle_words([BG] * 640))   # leere Zeile: 44 W
-            span.append(len(f))
-            f.extend(fitted)
-            if vline == TEXT_ROWS[tri] * 8 + 8 * SCALE - 1:
-                spans[tri] = span
+            text = text_a if tri == 0 else text_b
+            rc = [BG] * 640
+            for ch_idx, ch in enumerate(text[:MAX_CHARS]):
+                bits = FONT.get(ord(ch), FONT[63])[frow]
+                base = (6 + ch_idx) * 8 * SCALE
+                for px in range(8):
+                    col = base + px * SCALE
+                    on = FG if ((bits >> px) & 1) else BG
+                    for k in range(SCALE):
+                        if 0 <= col + k < 640:
+                            rc[col + k] = on
+            f.extend(rle_words(rc))
         else:
             f.append(W_WHITE)
     for _ in range(10):
@@ -173,7 +176,6 @@ def build_frame(text_a, text_b):
     return f
 
 print("[3] Frame-Bau...")
-spans = {}
 frame = build_frame("", "")
 print("Woerter:", len(frame), "=", len(frame) * 4, "Bytes")
 
@@ -199,7 +201,7 @@ sm.background_write(loop=frame)
 print("[6] VGA ok")
 print("VGA aktiv (weisser BG, 2 Textzeilen).")
 
-WORD_LIMIT = 3068   # bewiesene Kipp-Grenze (v9 lief exakt hierunter)
+WORD_LIMIT = 3056   # Peters Monitor lief mit 3052; 3068 = v9-Beweis
 
 def show(text_a=None, text_b=None):
     """Zeilen nur QUEUE'N; der zentrale UI-Loop rendert max 1x/100ms.
@@ -213,6 +215,7 @@ def show(text_a=None, text_b=None):
 
 cur_a, cur_b = "", ""
 pend_a, pend_b, pend = "", "", False
+last_build = [0.0]
 
 # ============ BMC-Tastatur (bewiesener Code) ============
 print("[7] SPI...")
@@ -318,6 +321,8 @@ tinybasic.out = console_out
 _last_blink = [0.0]
 _diag = [0.0, 0]
 
+_poll_skip = [0]
+
 def bmc_readline(prompt=""):
     """Zeile von der PS/2-Tastatur (VGA-Zeile A, Echo, Cursor)."""
     global cur_a
@@ -328,7 +333,14 @@ def bmc_readline(prompt=""):
         # Bewiesener Weg (diag-Experiment): 0x40 IMMER pollen - der
         # MCP23S17-INT (nirq) ist unzuverlässig, aber der FIFO-Read
         # liefert len>0, sobald Scancodes anstehen.
-        resp = bmc_read(0x40, 9, quiet=True)
+        # POLL-Drossel: 1 Read je 25 Loops (0.5s) - reduziert die
+        # SPI/DMA-Kollisionen drastisch.
+        _poll_skip[0] += 1
+        if _poll_skip[0] >= 25:
+            _poll_skip[0] = 0
+            resp = bmc_read(0x40, 9, quiet=True)
+        else:
+            resp = None
         if resp and resp[0] == 0xA0 and resp[1] > 0 and resp[1] != 0xFF:
                 n_scans = resp[1]
                 data = resp[2:2 + n_scans]
@@ -361,7 +373,6 @@ def bmc_readline(prompt=""):
                         show(prompt + line + "_", None)
                     i += 1
         ui_tick()
-        time.sleep(0.02)
         if (time.monotonic() - _last_blink[0]) > 1.0:
             _last_blink[0] = time.monotonic()
             led.value = not led.value
@@ -373,42 +384,30 @@ def bmc_readline(prompt=""):
                 print("diag%d nirq=%s 0x40->%s" % (_diag[1], nirq.value, resp.hex() if resp else "None"))
 
 def ui_tick():
-    """Zentraler Renderer: NUR In-Place-Patch der 2 Textzeilen
-    (16 Fontzeilen je exakt 44 Woerter) + 1 background_write.
-    ~10-20ms statt 300-1700ms - keine Tastenverluste mehr."""
-    global pend
+    """Zentraler Renderer: build_frame + background_write je Update
+    (bewiesener Weg - lief 5-6 Updates auf Peters Monitor) mit
+    Wort-Grenze-Kürzung. Drossel: max 1 Update je 150ms."""
+    global pend, frame, last_build
     if not pend:
         return
+    if time.monotonic() - last_build[0] < 0.1:
+        return   # Drossel: min 100ms zwischen Writes
     t0 = time.monotonic()
+    last_build[0] = time.monotonic()
     na, nb = pend_a, pend_b
-    # Text kuerzen, bis beide Zeilen in 44 Woerter passen:
-    for _ in range(40):
-        wa = line_words(na)
-        wb = line_words(nb)
-        if wa is not None and wb is not None:
-            break
+    frame = build_frame(na, nb)
+    while len(frame) > WORD_LIMIT and (na or nb):
         if len(nb) > len(na) and nb:
             nb = nb[:-2]
         else:
             na = na[:-2]
-    else:
-        wa = line_words("")
-        wb = line_words("")
+        frame = build_frame(na, nb)
     cur_a, cur_b = na, nb
-    # In-Place: 32 Spans patchen (16 je Zeile):
-    for tri, words in ((0, wa), (1, wb)):
-        span = spans[tri]
-        for frow, w44 in enumerate(words):
-            start = span[frow]
-            frame[start:start + WORDS_PER_ROW] = array.array("I", w44)
-    # KEIN background_write: Der DMA loopt über frame - In-Place-Edits
-    # übernimmt der DMA automatisch (CP-Doku: updated values are used).
-    # Ein NEUER background_write mit demselben Buffer kann die DMA-
-    # Rotation mid-Frame brechen -> 'unsupported timing'.
+    sm.background_write(loop=frame)
     pend = False
     import gc
     gc.collect()
-    print("ui_tick: patch %d ms, %d Woerter" % ((time.monotonic() - t0) * 1000, len(frame)))
+    print("ui_tick: build+write %d ms, %d Woerter" % ((time.monotonic() - t0) * 1000, len(frame)))
 
 # Shim: tinybasic-Namensraum (Modul-Attr schlaegt Builtin dort)
 tinybasic.input = bmc_readline
