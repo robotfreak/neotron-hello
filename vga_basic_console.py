@@ -82,9 +82,12 @@ def rle_words(colors):
 
 def build_frame(text_a, text_b):
     """Kompletter Frame: 480 sichtbare Zeilen (2 Textzeilen), 45 VBLANK.
-    text_a -> Zeile A (Eingabe), text_b -> Zeile B (Ausgabe)."""
+    text_a -> Zeile A (Eingabe), text_b -> Zeile B (Ausgabe).
+    Alle 64 Zeilen time.sleep(0): VM-yield, USB/CTRL-C bleibt bedienbar."""
     f = array.array("I")
     for vline in range(480):
+        if vline % 64 == 63:
+            time.sleep(0)   # VM-yield: USB/Keyboard-IRQs durchlassen
         f.append(W_FRONT); f.append(W_SYNC); f.append(W_BACK)
         tri = None
         for t_i, trow in enumerate(TEXT_ROWS):
@@ -250,6 +253,8 @@ def console_out(s):
 
 tinybasic.out = console_out
 
+_last_blink = [0.0]
+
 def bmc_readline(prompt=""):
     """Zeile von der PS/2-Tastatur (VGA-Zeile A, Echo, Cursor)."""
     global cur_a
@@ -292,12 +297,16 @@ def bmc_readline(prompt=""):
                     i += 1
         ui_tick()
         time.sleep(0.02)
+        if (time.monotonic() - _last_blink[0]) > 1.0:
+            _last_blink[0] = time.monotonic()
+            led.value = not led.value
 
 def ui_tick():
     """Zentraler Renderer: max 1 Write pro 100ms, nur bei Aenderung."""
     global pend, frame
     if not pend:
         return
+    t0 = time.monotonic()
     na, nb = pend_a, pend_b
     frame = build_frame(na, nb)
     while len(frame) > WORD_LIMIT and (na or nb):
@@ -309,6 +318,9 @@ def ui_tick():
     cur_a, cur_b = na, nb
     sm.background_write(loop=frame)
     pend = False
+    import gc
+    gc.collect()
+    print("ui_tick: build+write %d ms, %d Woerter" % ((time.monotonic() - t0) * 1000, len(frame)))
 
 builtins.input = bmc_readline
 
