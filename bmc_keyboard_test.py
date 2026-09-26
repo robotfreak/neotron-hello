@@ -69,14 +69,21 @@ def bmc_transfer(req_bytes, response_len):
         # Antwort-Clock: BIOS pollt bis 128x mit Delay 6us
         buf = bytearray(response_len)
         result = None
+        seen = []
         for retry in range(128):
             microcontroller.delay_us(6)
             spi.readinto(buf1)
+            if retry < 8:
+                seen.append(buf1[0])
             if buf1[0] in (0xA0, 0xA1, 0xA2, 0xA3, 0xA4):
                 result = buf1[0]
                 break
             # sonst: 0xFF-Clock, weiterschieben
+        if retry >= 8 and result is None:
+            print("  erste 8 gelesene Bytes:", [hex(b) for b in seen])
         if result is None:
+            # DIAGNOSE: Erste 8 geclockte Bytes ausgeben
+            print("  Antwort-Clock: keine Status-Byte 0xA0-0xA4 gesehen")
             return None
         # Rest der Antwort (incl. CRC) lesen
         rest = bytearray(response_len - 1)
