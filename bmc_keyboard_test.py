@@ -149,7 +149,12 @@ print("Teste BMC-Kommunikation (Firmware-Version, Register 0x01, len 32)...")
 for attempt in range(3):
     resp = bmc_read(0x01, 32)
     if resp and resp[0] == 0xA0:
-        print("BMC Antwort OK! Version:", resp[1:-1].replace(b"\x00", b"").decode(errors="ignore"))
+        payload = resp[1:-1].replace(b"\x00", b"")
+        try:
+            version = payload.decode()
+        except UnicodeError:
+            version = "<nicht-ASCII>"
+        print("BMC Antwort OK! Version:", version, "| Roh:", resp.hex())
         break
     print("Versuch", attempt + 1, "fehlgeschlagen:", resp)
 else:
