@@ -261,6 +261,7 @@ def console_out(s):
 tinybasic.out = console_out
 
 _last_blink = [0.0]
+_diag = [0.0, 0]
 
 def bmc_readline(prompt=""):
     """Zeile von der PS/2-Tastatur (VGA-Zeile A, Echo, Cursor)."""
@@ -307,6 +308,12 @@ def bmc_readline(prompt=""):
         if (time.monotonic() - _last_blink[0]) > 1.0:
             _last_blink[0] = time.monotonic()
             led.value = not led.value
+            # Diagnose alle 5s: nirq + Roh-Read von 0x40
+            if (time.monotonic() - _diag[0]) > 5.0:
+                _diag[0] = time.monotonic()
+                _diag[1] += 1
+                resp = bmc_read(0x40, 9)
+                print("diag%d nirq=%s 0x40->%s" % (_diag[1], nirq.value, resp.hex() if resp else "None"))
 
 def ui_tick():
     """Zentraler Renderer: max 1 Write pro 100ms, nur bei Aenderung."""
