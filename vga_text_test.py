@@ -41,11 +41,11 @@ GLYPHS = {
     84: [63, 45, 12, 12, 12, 12, 30, 0],
 }
 
-TEXT = "NEOTRON PICO"
-TEXT_ROW, TEXT_COL = 25, 6   # f=200-231; bei sauberem Lock (weiss): Screen 200-231 (Bildmitte-oben)
+TEXT_LINES = ("PICO",)   # 1 Zeile: 4 Zeichen a 48px (unter 3072-Woerter-Grenze)
+TEXT_ROW, TEXT_COL = 25, 6   # f=200-295 (2 Textzeilen a 48); bei Lock: Bildmitte-oben
 FG = 0b1111 << 10            # Blau (Text auf Weiss - max Kontrast)
 BG = (15 << 2) | (15 << 6) | (15 << 10)  # WEISS (hell = bewiesener Sync-Lock-Modus wie beim roten Farb-Test)
-SCALE = 4   # Font-Pixel = 2 Bildschirmpixel (DMA-Last halbiert)
+SCALE = 6   # Font-Pixel = 6 Bildschirmpixel (weniger RLE-Runs - unter der 3072-Woerter-Grenze)
 
 timing_pio = """
     pull
@@ -88,9 +88,10 @@ try:
             buf.append(W_SYNC)
             buf.append(W_BACK)
             if TEXT_ROW * 8 <= vline < TEXT_ROW * 8 + 8 * SCALE:
-                frow = (vline - TEXT_ROW * 8) // SCALE
+                line_idx = (vline - TEXT_ROW * 8) // SCALE   # 0..7
+                text_line, frow = TEXT_LINES[0], line_idx
                 rc = [BG] * 640
-                for ch_idx, ch in enumerate(TEXT):
+                for ch_idx, ch in enumerate(text_line):
                     bits = GLYPHS[ord(ch)][frow]
                     base = (TEXT_COL + ch_idx) * 8 * SCALE
                     for px in range(8):
