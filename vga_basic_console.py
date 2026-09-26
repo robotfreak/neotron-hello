@@ -397,7 +397,10 @@ def ui_tick():
         for frow, w44 in enumerate(words):
             start = span[frow]
             frame[start:start + WORDS_PER_ROW] = array.array("I", w44)
-    sm.background_write(loop=frame)
+    # KEIN background_write: Der DMA loopt über frame - In-Place-Edits
+    # übernimmt der DMA automatisch (CP-Doku: updated values are used).
+    # Ein NEUER background_write mit demselben Buffer kann die DMA-
+    # Rotation mid-Frame brechen -> 'unsupported timing'.
     pend = False
     import gc
     gc.collect()
