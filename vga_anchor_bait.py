@@ -15,6 +15,7 @@ import adafruit_pioasm
 import digitalio
 import time
 import array
+import gc
 
 led = digitalio.DigitalInOut(board.GP25)
 led.direction = digitalio.Direction.OUTPUT
@@ -73,6 +74,8 @@ GLYPHS = {
     84: [63, 45, 12, 12, 12, 12, 30, 0],
 }
 
+rc = [WHITE] * 640   # EIN Wiederverwendeter Zeilen-Puffer
+
 def rle_words(colors):
     out = []
     i = 0
@@ -85,16 +88,20 @@ def rle_words(colors):
         i = j
     return out
 
+# Speicher-Fix: alles temporaere frueh freigeben, Frame-Puffer PREALLOKIEREN
+gc.collect()
 frame = array.array("I")
 for vline in range(480):
     frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_BACK)
     if BAIT_ROW <= vline < BAIT_ROW + 2:
-        # Koeder: feine Streifen alle 8 px (gelb/weiss)
-        rc = [YELLOW if (x // 8) % 2 == 0 else WHITE for x in range(640)]
+        # Koeder: feine Streifen alle 8 px (gelb/weiss) - WIEDERVERWENDETES rc
+        for x in range(640):
+            rc[x] = YELLOW if (x // 8) % 2 == 0 else WHITE
         frame.extend(rle_words(rc))
     elif TEXT_ROW * 8 <= vline < TEXT_ROW * 8 + 8 * SCALE:
         frow = (vline - TEXT_ROW * 8) // SCALE
-        rc = [WHITE] * 640
+        for x in range(640):
+            rc[x] = WHITE
         for ch_idx, ch in enumerate(TEXT):
             bits = GLYPHS[ord(ch)][frow]
             base = (6 + ch_idx) * 8 * SCALE
