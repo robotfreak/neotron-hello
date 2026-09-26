@@ -61,9 +61,11 @@ use_alt = False
 buf1 = bytearray(1)
 
 def bmc_transfer(req_bytes, response_len, quiet=False):
-    """Request senden, Antwort lesen (BIOS-Protokoll)."""
+    """Request senden, Antwort lesen (BIOS-Protokoll).
+    BMC-CS = CS0 vom 74HC138-Decoder: noutput_en (GP21) LOW + GPIOA-Bits
+    0-2 = 0 waehlt CS0. GP17 bleibt HIGH (nur MCP23S17)."""
     global use_alt
-    cs.value = False
+    noutput_en.value = False   # drive_cs_lines: Decoder an, CS0 aktiv
     try:
         spi.write(req_bytes)
         # Antwort-Clock: BIOS pollt bis 128x mit Delay 6us
@@ -89,7 +91,7 @@ def bmc_transfer(req_bytes, response_len, quiet=False):
         spi.readinto(rest)
         return bytes([buf1[0]]) + bytes(rest)
     finally:
-        cs.value = True
+        noutput_en.value = True   # release_cs_lines: Decoder aus
 
 def bmc_read(register, length, quiet=False):
     global use_alt
@@ -120,6 +122,29 @@ mcp23s17_write(0x12, 0x00)   # GPIOA = 0 (led_state 0, cs 0 -> BMC-CS aktiv bei 
 mcp23s17_write(0x14, 0x00)   # GPPUA = keine Pullups
 mcp23s17_write(0x15, 0xFF)   # GPPUB = Pullups an IRQ-Leitungen
 print("MCP23S17 konfiguriert (GPIOA out, GPIOB in + Pullup)")
+
+# --- MCP23S17-Readback: Beweis, dass SPI-Bus + GP17-CS funktionieren ---
+def mcp23s17_read(reg):
+    cs.value = False
+    try:
+        spi.write(bytes([0x41, reg]))   # Opcode 0x41 = Read
+        r = bytearray(1)
+        spi.readinto(r)
+        return r[0]
+    finally:
+        cs.value = True
+
+mcp23s17_write(0x05, 0x55)  # OLATA - harmloses Register, nur als Testwert
+# OLATA (0x14) kann nicht geschrieben werden ohne GPIOA als Output... nutze
+# besser IODIRB (0x01): 0x5A schreiben und zuruecklesen:
+mcp23s17_write(0x01, 0x5A)  # IODIRB = 0x5A
+rb = mcp23s17_read(0x01)
+print("MCP23S17-Readback IODIRB: 0x%02X (erwartet 0x5A)" % rb)
+if rb == 0x5A:
+    print("=> SPI-Bus + GP17-CS OK: MCP23S17 antwortet korrekt!")
+    mcp23s17_write(0x01, 0xFF)  # IODIRB wieder auf Input (fuer Betrieb)
+else:
+    print("=> MCP23S17 antwortet NICHT: SPI-Verkabelung/GP17-CS pruefen!")
 print("Teste BMC-Kommunikation (Firmware-Version, Register 0x01, len 32)...")
 for attempt in range(3):
     resp = bmc_read(0x01, 32)
