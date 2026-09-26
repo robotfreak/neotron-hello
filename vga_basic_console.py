@@ -80,11 +80,66 @@ def rle_words(colors):
         i = j
     return out
 
+WORDS_PER_ROW = 30   # Feste Wortzahl je Fontzeile: 2100-32+32*30 = 3028
+                     # <= bewiesene Grenze 3052 (Peters Monitor lief damit)
+
+def fit_words(runs_words, n=WORDS_PER_ROW):
+    """Run-Wörter auf EXAKT n bringen (pixelidentisch):
+    Letzten Run verlängern, splitten bis n. None = Text kürzen nötig."""
+    if len(runs_words) > n:
+        return None
+    words = list(runs_words)
+    total_px = sum(((w >> 14) + 5) // 6 for w in words)
+    last = words[-1]
+    col = last & 0x3FFF
+    last_px = (((last >> 14) + 5) // 6)
+    need = 640 - (total_px - last_px)
+    words[-1] = ((need * 6 - 5) << 14) | col
+    while len(words) < n:
+        # Finde einen Run mit px >= 4 (vom Ende rückwärts):
+        idx = None
+        for k in range(len(words) - 1, -1, -1):
+            w = words[k]
+            if (((w >> 14) + 5) // 6) >= 4:
+                idx = k
+                break
+        if idx is None:
+            return None
+        w = words[idx]
+        col = w & 0x3FFF
+        px = (((w >> 14) + 5) // 6)
+        half = px // 2
+        words[idx:idx+1] = [((half * 6 - 5) << 14) | col,
+                            (((px - half) * 6 - 5) << 14) | col]
+    return words
+
+def line_words(text):
+    """16 Fontzeilen je EXAKT 44 Wörter (oder None -> Text kürzen)."""
+    rows = []
+    for frow in range(8 * SCALE):
+        rc = [BG] * 640
+        for ch_idx, ch in enumerate(text[:MAX_CHARS]):
+            bits = FONT.get(ord(ch), FONT[63])[frow % 8]
+            base = (6 + ch_idx) * 8 * SCALE
+            for px in range(8):
+                col = base + px * SCALE
+                on = FG if ((bits >> px) & 1) else BG
+                for k in range(SCALE):
+                    if 0 <= col + k < 640:
+                        rc[col + k] = on
+        runs = rle_words(rc)
+        f = fit_words(runs)
+        if f is None:
+            return None
+        rows.append(f)
+    return rows
+
 def build_frame(text_a, text_b):
     """Kompletter Frame: 480 sichtbare Zeilen (2 Textzeilen), 45 VBLANK.
     text_a -> Zeile A (Eingabe), text_b -> Zeile B (Ausgabe).
     Alle 64 Zeilen time.sleep(0): VM-yield, USB/CTRL-C bleibt bedienbar."""
     f = array.array("I")
+    spans.clear()
     for vline in range(480):
         if vline % 64 == 63:
             time.sleep(0)   # VM-yield: USB/Keyboard-IRQs durchlassen
@@ -95,19 +150,14 @@ def build_frame(text_a, text_b):
                 tri = t_i
                 break
         if tri is not None:
-            text = text_a if tri == 0 else text_b
             frow = (vline - TEXT_ROWS[tri] * 8) // SCALE
-            rc = [BG] * 640
-            for ch_idx, ch in enumerate(text[:MAX_CHARS]):
-                bits = FONT.get(ord(ch), FONT[63])[frow]
-                base = (6 + ch_idx) * 8 * SCALE
-                for px in range(8):
-                    col = base + px * SCALE
-                    on = FG if ((bits >> px) & 1) else BG
-                    for k in range(SCALE):
-                        if 0 <= col + k < 640:
-                            rc[col + k] = on
-            f.extend(rle_words(rc))
+            if vline == TEXT_ROWS[tri] * 8:
+                span = []
+            fitted = fit_words(rle_words([BG] * 640))   # leere Zeile: 44 W
+            span.append(len(f))
+            f.extend(fitted)
+            if vline == TEXT_ROWS[tri] * 8 + 8 * SCALE - 1:
+                spans[tri] = span
         else:
             f.append(W_WHITE)
     for _ in range(10):
@@ -119,6 +169,7 @@ def build_frame(text_a, text_b):
     return f
 
 print("[3] Frame-Bau...")
+spans = {}
 frame = build_frame("", "")
 print("Woerter:", len(frame), "=", len(frame) * 4, "Bytes")
 
@@ -318,25 +369,39 @@ def bmc_readline(prompt=""):
                 print("diag%d nirq=%s 0x40->%s" % (_diag[1], nirq.value, resp.hex() if resp else "None"))
 
 def ui_tick():
-    """Zentraler Renderer: max 1 Write pro 100ms, nur bei Aenderung."""
-    global pend, frame
+    """Zentraler Renderer: NUR In-Place-Patch der 2 Textzeilen
+    (16 Fontzeilen je exakt 44 Woerter) + 1 background_write.
+    ~10-20ms statt 300-1700ms - keine Tastenverluste mehr."""
+    global pend
     if not pend:
         return
     t0 = time.monotonic()
     na, nb = pend_a, pend_b
-    frame = build_frame(na, nb)
-    while len(frame) > WORD_LIMIT and (na or nb):
+    # Text kuerzen, bis beide Zeilen in 44 Woerter passen:
+    for _ in range(40):
+        wa = line_words(na)
+        wb = line_words(nb)
+        if wa is not None and wb is not None:
+            break
         if len(nb) > len(na) and nb:
             nb = nb[:-2]
         else:
             na = na[:-2]
-        frame = build_frame(na, nb)
+    else:
+        wa = line_words("")
+        wb = line_words("")
     cur_a, cur_b = na, nb
+    # In-Place: 32 Spans patchen (16 je Zeile):
+    for tri, words in ((0, wa), (1, wb)):
+        span = spans[tri]
+        for frow, w44 in enumerate(words):
+            start = span[frow]
+            frame[start:start + WORDS_PER_ROW] = array.array("I", w44)
     sm.background_write(loop=frame)
     pend = False
     import gc
     gc.collect()
-    print("ui_tick: build+write %d ms, %d Woerter" % ((time.monotonic() - t0) * 1000, len(frame)))
+    print("ui_tick: patch %d ms, %d Woerter" % ((time.monotonic() - t0) * 1000, len(frame)))
 
 # Shim: tinybasic-Namensraum (Modul-Attr schlaegt Builtin dort)
 tinybasic.input = bmc_readline
