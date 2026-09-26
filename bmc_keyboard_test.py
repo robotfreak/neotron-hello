@@ -21,6 +21,7 @@ import board
 import busio
 import digitalio
 import time
+import microcontroller
 
 # --- CRC-8 (Poly 0x07, init 0x00, nicht reflektiert) ---
 def crc8(data):
@@ -69,7 +70,7 @@ def bmc_transfer(req_bytes, response_len):
         buf = bytearray(response_len)
         result = None
         for retry in range(128):
-            time.sleep_us(6)
+            microcontroller.delay_us(6)
             spi.readinto(buf1)
             if buf1[0] in (0xA0, 0xA1, 0xA2, 0xA3, 0xA4):
                 result = buf1[0]
