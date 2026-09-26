@@ -42,7 +42,7 @@ GLYPHS = {
 }
 
 TEXT = "NEOTRON PICO"
-TEXT_ROW, TEXT_COL = 43, 6   # Kalibriert: f=344 -> Screen 203 (K=384) / 83 (K=264) / 344 (K=0) - in allen Faellen voll sichtbar
+TEXT_ROW, TEXT_COL = 45, 6   # Kalibriert: f=360-391 -> Screen 97-128 (S=263 gemessen) - oben-mitte, voll sichtbar
 FG = (15 << 2) | (15 << 6)   # Gelb
 BG = 0b1111 << 10            # Blau (Vollbild-Hintergrund, ECO-Schutz)
 SCALE = 4   # Font-Pixel = 2 Bildschirmpixel (DMA-Last halbiert)
