@@ -94,11 +94,10 @@ def bmc_read(register, length):
     return bmc_transfer(req, length + 2)
 
 def mcp23s17_write(reg, value):
-    """Direkt an MCP23S17 (CS GP17, Opcode 0x40)."""
+    """Direkt an MCP23S17 (nSPI_CS_IO = GP17, Opcode 0x40 = Write)."""
     cs.value = False
     try:
         spi.write(bytes([0x40, reg, value]))
-        spi.write(bytes([0x40 | 1, reg]))  # Dummy fuer Readback-Verifikation weglassen
     finally:
         cs.value = True
 
