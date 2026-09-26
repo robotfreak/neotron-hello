@@ -96,18 +96,22 @@ def fit_words(runs_words, n=WORDS_PER_ROW):
     need = 640 - (total_px - last_px)
     words[-1] = ((need * 6 - 5) << 14) | col
     while len(words) < n:
-        # Finde einen Run mit px >= 4 (vom Ende rückwärts):
+        # Splitte den GROESSTEN Run (balanciert): bleibt nahe an
+        # 640/n px pro Run -> alle Runs gross genug fuer den DMA
+        # (min count = px*6-5; px=2 waere nur 7 Takte -> FIFO-Underrun!)
         idx = None
-        for k in range(len(words) - 1, -1, -1):
+        best_px = 3
+        for k in range(len(words)):
             w = words[k]
-            if (((w >> 14) + 5) // 6) >= 4:
+            px = (((w >> 14) + 5) // 6)
+            if px > best_px:
+                best_px = px
                 idx = k
-                break
         if idx is None:
             return None
         w = words[idx]
         col = w & 0x3FFF
-        px = (((w >> 14) + 5) // 6)
+        px = best_px
         half = px // 2
         words[idx:idx+1] = [((half * 6 - 5) << 14) | col,
                             (((px - half) * 6 - 5) << 14) | col]
