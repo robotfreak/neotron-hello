@@ -1,17 +1,17 @@
-# vga_calib_test.py - Vertikal-Kalibration: Lineal + 2 Textkopien
+# vga_calib_test.py - Vertikal-Kalibration (v2, v9-Struktur!)
 #
-# Auf Basis des LAUFENDEN Text-Tests (v9: Text sichtbar, aber unten abgeschnitten).
-# Ziel: Die vertikale Verschiebung des Monitors messen.
+# WICHTIG: v9 (32 RLE-Zeilen) lief; v1 dieses Tests (64 RLE-Zeilen) kippte
+# ("Unsupported video format"). Ab ca. 32+ RLE-Zeilen/Frame wird die DMA-
+# Kette grenzwertig. Deshalb: NUR EINE Textzone (wie v9) + 3 Ein-Wort-Balken.
 #
-# Monitor-Erwartung:
-#   - 5 gelbe Lineal-Balken (je 2 Zeilen) bei Bildzeilen 0, 120, 240, 360, 420
-#   - "NEOTRON PICO" (gelb, 32 Zeilen hoch) bei Zeilen 60-91 UND 250-281
-#   - Rest: blaues Vollbild, unten schwarzer Balken (VBLANK, normal)
+# Basis: vga_text_test.py v9 EXAKT (Text bei Zeilen 80-111) + 3 gelbe Balken
+# (je 2 Zeilen) bei 0, 240, 420.
 #
-# Peter meldet: Balken ganz oben sichtbar? Wie viele Balken? Wo ist der letzte?
-#               Welche Textkopie(n) vollstaendig sichtbar?
-# -> Daraus berechnet Hermes die exakte Zeilenverschiebung und setzt
-#    die finale Text-Position in vga_text_test.py.
+# Peter meldet:
+#   1. Balken ganz oben sichtbar?  2. Balken Mitte: wo relativ zum Text?
+#   3. Balken unten: Abstand zum unteren Bildrand?
+#   4. Text vollstaendig sichtbar? Oberkante/Unterkante-Abstand?
+# -> Hermes rechnet die Verschiebung aus und setzt die finale Textposition.
 #
 # LED: 3x Start, danach 1x/s Heartbeat.
 import board
@@ -32,7 +32,7 @@ def blink(n, dt=0.12):
         time.sleep(dt)
 
 blink(3)
-print("Kalibrationstest (Lineal + 2 Textkopien)...")
+print("Kalibration v2 (v9-Struktur + 3 Balken)...")
 
 timing_pio = """
     pull
@@ -61,9 +61,9 @@ W_BLUE = W_BLANK | BLUE
 W_YELLOW = W_BLANK | YELLOW
 
 TEXT = "NEOTRON PICO"
-TEXT_ZONES = (60, 250)   # Startzeilen der beiden Textkopien (je 32 Zeilen hoch)
-SCALE = 4                # Font-Pixel = 4x4 Screen-Pixel
-BAR_ROWS = (0, 1, 120, 121, 240, 241, 360, 361, 420, 421)
+TEXT_ROW = 10          # v9: Textzone 80-111 (32 Zeilen)
+SCALE = 4
+BAR_ROWS = (0, 1, 240, 241, 420, 421)
 
 GLYPHS = {
     32: [0, 0, 0, 0, 0, 0, 0, 0],
@@ -89,35 +89,26 @@ def rle_words(colors):
         i = j
     return out
 
-def text_row_colors(start, frow):
-    rc = [BLUE] * 640
-    for ch_idx, ch in enumerate(TEXT):
-        bits = GLYPHS[ord(ch)][frow]
-        base = (6 + ch_idx) * 8 * SCALE
-        for px in range(8):
-            col = base + px * SCALE
-            on = YELLOW if ((bits >> px) & 1) else BLUE
-            for k in range(SCALE):
-                if 0 <= col + k < 640:
-                    rc[col + k] = on
-    return rc
-
 frame = array.array("I")
 for vline in range(480):
     frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_BACK)
     if vline in BAR_ROWS:
         frame.append(W_YELLOW)
+    elif TEXT_ROW * 8 <= vline < TEXT_ROW * 8 + 8 * SCALE:
+        frow = (vline - TEXT_ROW * 8) // SCALE
+        rc = [BLUE] * 640
+        for ch_idx, ch in enumerate(TEXT):
+            bits = GLYPHS[ord(ch)][frow]
+            base = (6 + ch_idx) * 8 * SCALE
+            for px in range(8):
+                col = base + px * SCALE
+                on = YELLOW if ((bits >> px) & 1) else BLUE
+                for k in range(SCALE):
+                    if 0 <= col + k < 640:
+                        rc[col + k] = on
+        frame.extend(rle_words(rc))
     else:
-        zone = None
-        for start in TEXT_ZONES:
-            if start <= vline < start + 8 * SCALE:
-                zone = start
-                break
-        if zone is not None:
-            frow = (vline - zone) // SCALE
-            frame.extend(rle_words(text_row_colors(zone, frow)))
-        else:
-            frame.append(W_BLUE)
+        frame.append(W_BLUE)
 for _ in range(10):
     frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_BACK); frame.append(W_BLANK)
 for _ in range(2):
@@ -146,8 +137,8 @@ dummy = array.array("I", (W_FRONT, W_SYNC, W_BACK, W_BLANK) * 525)
 sm.background_write(loop=dummy)
 time.sleep(0.5)
 sm.background_write(loop=frame)
-print("Kalibration aktiv (59,52 Hz).")
-print("Erwartung: 5 gelbe Balken + 2x NEOTRON PICO auf Blau")
+print("Kalibration v2 aktiv (59,52 Hz).")
+print("Erwartung: 3 gelbe Balken + NEOTRON PICO auf Blau")
 n = 0
 while True:
     time.sleep(1)
