@@ -270,9 +270,11 @@ def bmc_readline(prompt=""):
     shift[0] = False
     show(prompt + "_", None)
     while True:
-        if not nirq.value:
-            resp = bmc_read(0x40, 9, quiet=True)
-            if resp and resp[0] == 0xA0 and resp[1] > 0:
+        # Bewiesener Weg (diag-Experiment): 0x40 IMMER pollen - der
+        # MCP23S17-INT (nirq) ist unzuverlässig, aber der FIFO-Read
+        # liefert len>0, sobald Scancodes anstehen.
+        resp = bmc_read(0x40, 9, quiet=True)
+        if resp and resp[0] == 0xA0 and resp[1] > 0 and resp[1] != 0xFF:
                 n_scans = resp[1]
                 data = resp[2:2 + n_scans]
                 i = 0
