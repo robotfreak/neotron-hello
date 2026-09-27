@@ -203,18 +203,25 @@ def write_frame(text_a, text_b):
     frame = array.array("I")
     ra = render_line(text_a) if text_a else None
     rb = render_line(text_b) if text_b else None
-    # RULER-Kalibrierung: Marker je 20 Frame-Zeilen, Nummer per
-    # Streifenbreite (1-4 Zeilen je Marker-Index mod 5):
+    # Text 5x spiegeln (alle 100 Frame-Zeilen): egal wo der Monitor
+    # lockt, mindestens eine Kopie ist sichtbar. Peter waehlt dann
+    # die beste Position und wir frieren sie ein.
     for vline in range(480):
         if vline % 64 == 63:
             time.sleep(0)
         frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_BACK)
-        if TEXT_ROW_A * 8 <= vline < TEXT_ROW_A * 8 + 16:
-            frow = (vline - TEXT_ROW_A * 8) // 2
-            frame.extend(ra[frow] if ra else [W_BLANK])
-        elif TEXT_ROW_B * 8 <= vline < TEXT_ROW_B * 8 + 16:
-            frow = (vline - TEXT_ROW_B * 8) // 2
-            frame.extend(rb[frow] if rb else [W_BLANK])
+        shown = None
+        for k in range(5):
+            r0 = (TEXT_ROW_A + k * 100) % 480
+            if r0 * 8 <= vline < r0 * 8 + 16:
+                shown = ra[(vline - r0 * 8) // 2] if ra else None
+                break
+        if shown is None:
+            r0 = (TEXT_ROW_B * 8) % 480
+            if r0 * 8 <= vline < r0 * 8 + 16:
+                shown = rb[(vline - r0 * 8) // 2] if rb else None
+        if shown:
+            frame.extend(shown)
         else:
             frame.append(W_BLANK)
     for _ in range(10):
