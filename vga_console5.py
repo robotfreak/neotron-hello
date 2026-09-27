@@ -176,8 +176,8 @@ import tinybasic
 
 shift = [False]
 MAX_CHARS = 26
-TEXT_ROW_A = 25   # Zurueck auf Lauf-1-Zustand (Balken sichtbar, beweisnah)
-TEXT_ROW_B = 35   # Zeile B unter A (wie Lauf 1)
+TEXT_ROW_A = 3    # f=24-39 -> Screen 67-82 (Lock-Modell: Screen=(f+43) mod 525)
+TEXT_ROW_B = 0    # f=0-15 -> Screen 43-58, ueber A (beide NACH dem Balken-Anfang)
 
 def render_line(text):
     rows = []
@@ -209,9 +209,6 @@ def write_frame(text_a, text_b):
         if vline % 64 == 63:
             time.sleep(0)
         frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_BACK)
-        if vline % 20 == 0:   # 1-Zeilen-Marker alle 20 Frame-Zeilen
-            frame.append(word(CY_VIS, color=(15 << 6)))
-            continue
         if TEXT_ROW_A * 8 <= vline < TEXT_ROW_A * 8 + 16:
             frow = (vline - TEXT_ROW_A * 8) // 2
             frame.extend(ra[frow] if ra else [W_BLANK])
