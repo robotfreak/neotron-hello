@@ -257,34 +257,33 @@ def bmc_readline(prompt=""):
         poll_skip[0] += 1
         if poll_skip[0] >= 25:
             poll_skip[0] = 0
-            if not nirq.value:
-                resp = bmc_read(0x40, 9)
-                if resp and resp[0] == 0xA0 and resp[1] > 0 and resp[1] != 0xFF:
-                    n_scans = resp[1]
-                    data = resp[2:2 + n_scans]
-                    i = 0
-                    while i < len(data):
-                        b = data[i]
-                        if b == 0xE0 or b == 0xF0:
-                            i += 2; continue
-                        if b == 0x12 or b == 0x59:
-                            shift[0] = True
-                            i += 1; continue
-                        entry = SC.get(b)
-                        if entry:
-                            ch = entry[1] if shift[0] else entry[0]
-                            shift[0] = False
-                            if ch == chr(13):
-                                pend_a = prompt + line
-                                ui_tick()
-                                return line
-                            if ch == chr(8):
-                                if line: line = line[:-1]
-                            elif ch:
-                                if len(line) + len(prompt) < MAX_CHARS:
-                                    line += ch
-                            pend_a = prompt + line + "_"
-                        i += 1
+            resp = bmc_read(0x40, 9)  # OHNE nirq-Gate (bewiesen: INT kommt nie)
+            if resp and resp[0] == 0xA0 and resp[1] > 0 and resp[1] != 0xFF:
+                n_scans = resp[1]
+                data = resp[2:2 + n_scans]
+                i = 0
+                while i < len(data):
+                    b = data[i]
+                    if b == 0xE0 or b == 0xF0:
+                        i += 2; continue
+                    if b == 0x12 or b == 0x59:
+                        shift[0] = True
+                        i += 1; continue
+                    entry = SC.get(b)
+                    if entry:
+                        ch = entry[1] if shift[0] else entry[0]
+                        shift[0] = False
+                        if ch == chr(13):
+                            pend_a = prompt + line
+                            ui_tick()
+                            return line
+                        if ch == chr(8):
+                            if line: line = line[:-1]
+                        elif ch:
+                            if len(line) + len(prompt) < MAX_CHARS:
+                                line += ch
+                        pend_a = prompt + line + "_"
+                    i += 1
         if (pend_a is not None and pend_a != cur_a) and (time.monotonic() - last_write[0]) > 0.1:
             ui_tick()
         if time.monotonic() - led_t[0] > 1.0:
