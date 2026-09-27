@@ -127,8 +127,8 @@ use_alt = [False]
 buf1 = bytearray(1)
 
 def bmc_transfer(req_bytes, response_len):
-    noutput_en = digitalio.DigitalInOut(board.GP21)
-    noutput_en.direction = digitalio.Direction.OUTPUT
+    # GP21 ist EINMAL oben geclaimed - hier nur Pegel toggeln
+    # (DigitalInOut im Transfer -> 'GP21 in use'-Crash).
     noutput_en.value = False
     try:
         spi.write(req_bytes)
