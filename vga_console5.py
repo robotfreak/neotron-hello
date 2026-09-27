@@ -176,8 +176,8 @@ import tinybasic
 
 shift = [False]
 MAX_CHARS = 26
-TEXT_ROW_A = 3    # f=24-39 -> Screen 67-82 (Lock-Modell: Screen=(f+43) mod 525)
-TEXT_ROW_B = 0    # f=0-15 -> Screen 43-58, ueber A (beide NACH dem Balken-Anfang)
+TEXT_ROW_A = 0    # f=0-15 -> Screen 43-58 (nach dem schwarzen Balken-Anfang)
+TEXT_ROW_B = 4    # f=32-47 -> Screen 75-90, DARUNTER (beide sichtbar)
 
 def render_line(text):
     rows = []
