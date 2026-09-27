@@ -20,7 +20,7 @@ from rp2 import PIO, asm_pio
 # Je Wort: [HSYNC, VSYNC, Dauer14] - die Sync-Pegel setzen, X Takte
 # warten, naechstes Wort ziehen (der DMA liefert nach).
 @rp2.asm_pio(out_init=(rp2.PIO.OUT_HIGH, rp2.PIO.OUT_HIGH),
-             out_shiftdir=rp2.PIO.SHIFT_LEFT, autopull=False,
+             out_shiftdir=rp2.PIO.SHIFT_RIGHT, autopull=False,
              pull_thresh=32, fifo_join=rp2.PIO.JOIN_TX)
 def timing_prog():
     pull()
