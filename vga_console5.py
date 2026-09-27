@@ -174,8 +174,8 @@ import tinybasic
 
 shift = [False]
 MAX_CHARS = 26
-TEXT_ROW_A = 52   # f=416-431 -> Screen 199-214 (S=217-Modell: (f+308) mod 525)
-TEXT_ROW_B = 55   # f=440-455 -> Screen 223-238
+TEXT_ROW_A = 57   # f=456-471: der bewiesene sichtbare Bereich (v9: Text f=462-477 KOMPLETT sichtbar)
+TEXT_ROW_B = 54   # f=432-447, ueber A (Statuszeilen-Design: Eingabe unten)
 
 def render_line(text):
     rows = []
