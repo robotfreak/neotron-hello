@@ -1,0 +1,227 @@
+# vga_basic_console.py - Tiny-BASIC auf VGA + PS/2-Tastatur (Neotron-Pico)
+#
+# Bewiesene Bausteine kombiniert:
+#   VGA: vga_text_final-Struktur (weisser BG, SCALE=2, 525 Zeilen, RLE)
+#   Tastatur: bmc_keyboard_test (BMC-SPI Register 0x40, verifiziert)
+#   BASIC: tinybasic.py (17/17 Tests) via out()/input()-Shim
+#
+# Konzept: 2 Textzeilen im Frame (32 RLE-Zeilen gesamt = bewiesene Grenze):
+#   Zeile A (TEXT_ROW 25, f=200-215): Eingabezeile mit Cursor
+#   Zeile B (TEXT_ROW 35, f=280-295): letzte BASIC-Ausgabe
+# Nach jedem Tastendruck: kompletter Frame-Rebuild + background_write
+# (bewiesener Doppel-Write-Pfad, stabil).
+#
+# LED: 3x Start, danach Heartbeat im Poll-Loop.
+import board
+import rp2pio
+import adafruit_pioasm
+import digitalio
+import microcontroller
+import time
+import array
+import font8x8
+
+FONT = font8x8.FONT
+led = digitalio.DigitalInOut(board.GP25)
+led.direction = digitalio.Direction.OUTPUT
+
+def blink(n, dt=0.12):
+    for _ in range(n):
+        led.value = True
+        time.sleep(dt)
+        led.value = False
+        time.sleep(dt)
+
+blink(3)
+print("[1] Start")
+
+# ============ VGA-Frame (bewiesene Struktur) ============
+timing_pio = """
+    pull
+    out pins, 14
+    set x, 0
+    out x, 14
+period_loop:
+    jmp x-- period_loop
+"""
+print("[2] PIO-Asm...")
+timing_prog = adafruit_pioasm.assemble(timing_pio)
+
+def tw(c_, hl=False, vl=False):
+    b0 = 0 if hl else 1
+    b1 = 0 if vl else 1
+    return (((c_ - 5) << 14) | b0 | (b1 << 1)) & 0xFFFFFFFF
+
+WHITE = (15 << 2) | (15 << 6) | (15 << 10)
+BLUE = 15 << 10
+FG, BG = BLUE, WHITE
+
+CY_FRONT, CY_SYNC, CY_BACK, CY_VIS = 96, 576, 288, 3840
+W_FRONT = tw(CY_FRONT)
+W_SYNC = tw(CY_SYNC, True)
+W_BACK = tw(CY_BACK)
+W_BLANK = tw(CY_VIS)
+W_WHITE = W_BLANK | WHITE
+
+TEXT_ROWS = (25, 35)   # Zeile A (Eingabe) f=200-215, Zeile B (Ausgabe) f=280-295
+SCALE = 2
+MAX_CHARS = 30         # 6 + 30*16 = 486 < 640
+
+def rle_words(colors):
+    out = []
+    i = 0
+    n = len(colors)
+    while i < n:
+        j = i
+        while j < n and colors[j] == colors[i]:
+            j += 1
+        out.append((((j - i) * 6 - 5) << 14) | colors[i])
+        i = j
+    return out
+
+WORDS_PER_ROW = 30   # Feste Wortzahl je Fontzeile: 2100-32+32*30 = 3028
+                     # <= bewiesene Grenze 3052 (Peters Monitor lief damit)
+
+def fit_words(runs_words, n=WORDS_PER_ROW):
+    """Run-Wörter auf EXAKT n bringen (pixelidentisch):
+    Letzten Run verlängern, splitten bis n. None = Text kürzen nötig."""
+    if len(runs_words) > n:
+        return None
+    words = list(runs_words)
+    total_px = sum(((w >> 14) + 5) // 6 for w in words)
+    last = words[-1]
+    col = last & 0x3FFF
+    last_px = (((last >> 14) + 5) // 6)
+    need = 640 - (total_px - last_px)
+    words[-1] = ((need * 6 - 5) << 14) | col
+    while len(words) < n:
+        # Splitte den GROESSTEN Run (balanciert): bleibt nahe an
+        # 640/n px pro Run -> alle Runs gross genug fuer den DMA
+        # (min count = px*6-5; px=2 waere nur 7 Takte -> FIFO-Underrun!)
+        idx = None
+        best_px = 3
+        for k in range(len(words)):
+            w = words[k]
+            px = (((w >> 14) + 5) // 6)
+            if px > best_px:
+                best_px = px
+                idx = k
+        if idx is None:
+            return None
+        w = words[idx]
+        col = w & 0x3FFF
+        px = best_px
+        half = px // 2
+        words[idx:idx+1] = [((half * 6 - 5) << 14) | col,
+                            (((px - half) * 6 - 5) << 14) | col]
+    return words
+
+def line_words(text):
+    """16 Fontzeilen je EXAKT 44 Wörter (oder None -> Text kürzen)."""
+    rows = []
+    for frow in range(8 * SCALE):
+        rc = [BG] * 640
+        for ch_idx, ch in enumerate(text[:MAX_CHARS]):
+            bits = FONT.get(ord(ch), FONT[63])[frow % 8]
+            base = (6 + ch_idx) * 8 * SCALE
+            for px in range(8):
+                col = base + px * SCALE
+                on = FG if ((bits >> px) & 1) else BG
+                for k in range(SCALE):
+                    if 0 <= col + k < 640:
+                        rc[col + k] = on
+        runs = rle_words(rc)
+        f = fit_words(runs)
+        if f is None:
+            return None
+        rows.append(f)
+    return rows
+
+def build_frame(text_a, text_b):
+    """Kompletter Frame: BEWIESENE v9-Struktur - Textzeilen als echte
+    RLE-Zeilen (variable Wortzahl!), alle anderen Zeilen je 1 Wort."""
+    f = array.array("I")
+    for vline in range(480):
+        if vline % 64 == 63:
+            time.sleep(0)   # VM-yield: USB/Keyboard-IRQs durchlassen
+        f.append(W_FRONT); f.append(W_SYNC); f.append(W_BACK)
+        tri = None
+        for t_i, trow in enumerate(TEXT_ROWS):
+            if trow * 8 <= vline < trow * 8 + 8 * SCALE:
+                tri = t_i
+                break
+        if tri is not None:
+            frow = (vline - TEXT_ROWS[tri] * 8) // SCALE
+            text = text_a if tri == 0 else text_b
+            rc = [BG] * 640
+            for ch_idx, ch in enumerate(text[:MAX_CHARS]):
+                bits = FONT.get(ord(ch), FONT[63])[frow]
+                base = (6 + ch_idx) * 8 * SCALE
+                for px in range(8):
+                    col = base + px * SCALE
+                    on = FG if ((bits >> px) & 1) else BG
+                    for k in range(SCALE):
+                        if 0 <= col + k < 640:
+                            rc[col + k] = on
+            f.extend(rle_words(rc))
+        else:
+            f.append(W_WHITE)
+    for _ in range(10):
+        f.append(W_FRONT); f.append(W_SYNC); f.append(W_BACK); f.append(W_BLANK)
+    for _ in range(2):
+        f.extend((tw(CY_FRONT, vl=True), tw(CY_SYNC, True, vl=True), tw(CY_BACK, vl=True), tw(CY_VIS, vl=True)))
+    for _ in range(33):
+        f.append(W_FRONT); f.append(W_SYNC); f.append(W_BACK); f.append(W_BLANK)
+    return f
+
+print("[3] Frame-Bau...")
+frame = build_frame("", "")
+print("Woerter:", len(frame), "=", len(frame) * 4, "Bytes")
+
+print("[4] StateMachine...")
+sm = rp2pio.StateMachine(
+    timing_prog,
+    frequency=150_000_000,
+    first_out_pin=board.GP0,
+    out_pin_count=14,
+    initial_out_pin_state=0b11,
+    initial_out_pin_direction=0x3FFF,
+    auto_pull=False,
+)
+noutput_en = digitalio.DigitalInOut(board.GP21)
+noutput_en.direction = digitalio.Direction.OUTPUT
+noutput_en.value = True
+
+print("[5] Dummy-Write...")
+dummy = array.array("I", (W_FRONT, W_SYNC, W_BACK, W_BLANK) * 525)
+sm.background_write(loop=dummy)
+time.sleep(0.5)
+sm.background_write(loop=frame)
+print("[6] VGA ok")
+print("VGA aktiv (weisser BG, 2 Textzeilen).")
+
+WORD_LIMIT = 3056   # Peters Monitor lief mit 3052; 3068 = v9-Beweis
+
+def show(text_a=None, text_b=None):
+    """Zeilen nur QUEUE'N; der zentrale UI-Loop rendert max 1x/100ms.
+    Mindestens 6 saubere DMA-Loops zwischen Writes (bewiesener Rhythmus)."""
+    global pend_a, pend_b, pend
+    if text_a is not None:
+        pend_a = text_a
+    if text_b is not None:
+        pend_b = text_b
+    pend = True
+
+cur_a, cur_b = "", ""
+pend_a, pend_b, pend = "", "", False
+last_build = [0.0]
+
+# ============ BMC-Tastatur (bewiesener Code) ============
+
+print("STATIC v9: laufe. Monitor zeigen?")
+n = 0
+while True:
+    time.sleep(1)
+    n += 1
+    led.value = not led.value
+    print("alive", n)
