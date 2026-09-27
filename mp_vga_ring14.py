@@ -21,26 +21,28 @@ def timing_prog():
 
 # Das Wort-Format (CP-Beweis): bit0=HSYNC, bit1=VSYNC, bits2-13=RGB,
 # bits14-27=Dauer-1 (der 'jmp x--' macht Dauer+1 Iterationen)
-def word(cycles, hsync=False, vsync=False, color=0):
-    b0 = 0 if hsync else 1
-    b1 = 0 if vsync else 1
-    return (((cycles - 1) << 14) | (color << 2) | b0 | (b1 << 1)) & 0xFFFFFFFF
+def word(cycles, hsync_low=False, vsync_low=False, color=0):
+    b0 = 0 if hsync_low else 1
+    b1 = 0 if vsync_low else 1
+    return (((cycles - 5) << 14) | color | b0 | (b1 << 1)) & 0xFFFFFFFF
 
 CY_FRONT, CY_SYNC, CY_BACK, CY_VIS = 96, 576, 288, 3840
 W_FRONT = word(CY_FRONT)
-W_SYNC  = word(CY_SYNC, hsync=True)
+W_SYNC  = word(CY_SYNC, hsync_low=True)
 W_BACK  = word(CY_BACK)
 W_BLANK = word(CY_VIS)
 
 def build_frame():
     f = []
     for vline in range(480):
-        f.extend((W_FRONT, W_SYNC, W_BACK, word(CY_VIS, color=0x3FFC >> 2)))
+        f.extend((W_FRONT, W_SYNC, W_BACK, word(CY_VIS, color=0x3FFC)))
     for _ in range(10):
         f.extend((W_FRONT, W_SYNC, W_BACK, W_BLANK))
     for _ in range(2):
-        f.extend((word(CY_FRONT), word(CY_SYNC, True, True),
-                  word(CY_BACK, True, True), word(CY_VIS, True, True)))
+        f.extend((word(CY_FRONT, vsync_low=True),
+                  word(CY_SYNC, True, True),
+                  word(CY_BACK, vsync_low=True),
+                  word(CY_VIS, vsync_low=True)))
     for _ in range(6):
         f.extend((W_FRONT, W_SYNC, W_BACK, W_BLANK))
     # Auf 2048 auffuellen (Ring!):
