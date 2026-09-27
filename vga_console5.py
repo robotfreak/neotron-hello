@@ -162,12 +162,14 @@ _c = {'Q':0x15,'W':0x1D,'E':0x24,'R':0x2D,'T':0x2C,'Y':0x35,'U':0x3C,
 for ch, code in _c.items(): SC[code] = (ch.lower(), ch)
 SC[0x29] = (' ', ' ')
 for i, code in enumerate([0x16,0x1E,0x26,0x25,0x2E,0x36,0x3D,0x3E,0x46,0x45]):
-    SC[code] = (str(i + 1), "!@#$%^&*()"[i])   # US-Layout (86-Tasten-Tastatur)
+    SC[code] = (str(i + 1), "!\u0022\u00a3$%^&*()"[i])   # UK-Layout (86 Tasten)
 SC[0x66] = (chr(8), chr(8))
 SC[0x5A] = (chr(13), chr(13))
 SC[0x54] = ('[', '{'); SC[0x5B] = (']', '}')
 SC[0x41] = (',', '<'); SC[0x49] = ('.', '>'); SC[0x4A] = ('/', '?')
-SC[0x4C] = (';', ':'); SC[0x52] = (chr(39), chr(34)); SC[0x4E] = ('-', '_')
+SC[0x4C] = (';', ':'); SC[0x52] = (chr(39), chr(64))   # UK: Shift+Apostroph=@
+
+SC[0x4E] = ('-', '_')
 SC[0x55] = ('=', '+')
 print("[8] tinybasic import...")
 import tinybasic
