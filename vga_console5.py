@@ -162,7 +162,7 @@ _c = {'Q':0x15,'W':0x1D,'E':0x24,'R':0x2D,'T':0x2C,'Y':0x35,'U':0x3C,
 for ch, code in _c.items(): SC[code] = (ch.lower(), ch)
 SC[0x29] = (' ', ' ')
 for i, code in enumerate([0x16,0x1E,0x26,0x25,0x2E,0x36,0x3D,0x3E,0x46,0x45]):
-    SC[code] = (str(i + 1), "!\"§$%&/()="[i])   # DEUTSCHE Tastatur (Shift-Ebene)
+    SC[code] = (str(i + 1), "!@#$%^&*()"[i])   # US-Layout (86-Tasten-Tastatur)
 SC[0x66] = (chr(8), chr(8))
 SC[0x5A] = (chr(13), chr(13))
 SC[0x54] = ('[', '{'); SC[0x5B] = (']', '}')
@@ -270,6 +270,8 @@ def bmc_readline(prompt=""):
                         shift[0] = True
                         i += 1; continue
                     entry = SC.get(b)
+                    if entry is None and b:
+                        print("RAW-Scancode:", hex(b))
                     if entry:
                         ch = entry[1] if shift[0] else entry[0]
                         shift[0] = False
