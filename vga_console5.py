@@ -257,7 +257,7 @@ def bmc_readline(prompt=""):
     pend_a = prompt + "_"
     while True:
         poll_skip[0] += 1
-        if poll_skip[0] >= 5:   # 10 Polls/s (0.1s) - FIFO 8 tief
+        if poll_skip[0] >= 2:   # 20 Polls/s (0.04s) - fluessiges Echo
             poll_skip[0] = 0
             resp = bmc_read(0x40, 9)  # OHNE nirq-Gate (bewiesen: INT kommt nie)
             if resp and resp[0] == 0xA0 and resp[1] > 0 and resp[1] != 0xFF:
