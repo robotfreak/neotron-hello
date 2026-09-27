@@ -70,7 +70,9 @@ def build_frame(text=None, font=None):
 # MicroPython setzt die PIO-Pins NICHT automatisch auf OUTPUT
 # (anders als CircuitPython initial_out_pin_direction) - die
 # Pin-Richtung manuell setzen, BEVOR der SM startet:
-from machine import Pin
+from machine import Pin, freq
+freq(150_000_000)   # System-Clock 150 MHz (sonst max 125 MHz ->
+                    # SM-Teiler unmoeglich, Takt 20% zu langsam)
 Pin(0, Pin.OUT)   # GP0 = HSYNC
 Pin(1, Pin.OUT)   # GP1 = VSYNC
 Pin(21, Pin.OUT).value(1)   # GP21 = nOUTPUT_EN HIGH (VGA-Pflicht!)
