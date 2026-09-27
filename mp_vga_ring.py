@@ -31,8 +31,10 @@ def timing_prog():
     pull()
 
 # Das Timing-Wort: bit0=HSYNC(1=HIGH), bit1=VSYNC, bits 2-31=Dauer
+# Der PIO-Overhead je Wort: pull(0, blockiert) + out pins(1) +
+# out x(1) + (X+1) x_dec/jmp = X+3 Takte - die PERIODE ist X+3:
 def tw(period, hsync=False, vsync=False):
-    return (period << 2) | (0 if hsync else 1) | ((0 if vsync else 1) << 1)
+    return (((period - 3) & 0x3FFFFFFF) << 2) | (0 if hsync else 1) | ((0 if vsync else 1) << 1)
 
 # 150 MHz PIO / 6 = 25 MHz Pixel-Takt (nahe 25.175)
 T = lambda px: px * 6
@@ -65,6 +67,14 @@ def build_frame(text=None, font=None):
     return f
 
 # ============ SM + DMA-Hardware-Ring ============
+# MicroPython setzt die PIO-Pins NICHT automatisch auf OUTPUT
+# (anders als CircuitPython initial_out_pin_direction) - die
+# Pin-Richtung manuell setzen, BEVOR der SM startet:
+from machine import Pin
+Pin(0, Pin.OUT)   # GP0 = HSYNC
+Pin(1, Pin.OUT)   # GP1 = VSYNC
+Pin(21, Pin.OUT).value(1)   # GP21 = nOUTPUT_EN HIGH (VGA-Pflicht!)
+
 # Der timing-SM PULLT aus dem TX-FIFO - die DMA schreibt rein.
 sm = rp2.StateMachine(0, timing_prog, freq=150_000_000,
                       out_base=0)
