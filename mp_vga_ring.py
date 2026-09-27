@@ -21,7 +21,7 @@ from rp2 import PIO, asm_pio
 # warten, naechstes Wort ziehen (der DMA liefert nach).
 @rp2.asm_pio(out_init=(rp2.PIO.OUT_HIGH, rp2.PIO.OUT_HIGH),
              out_shiftdir=rp2.PIO.SHIFT_LEFT, autopull=False,
-             pull_thresh=32, set_init=(rp2.PIO.OUT_HIGH, rp2.PIO.OUT_HIGH))
+             pull_thresh=32, fifo_join=rp2.PIO.JOIN_TX)
 def timing_prog():
     pull()
     out(pins, 2)
@@ -67,7 +67,7 @@ def build_frame(text=None, font=None):
 # ============ SM + DMA-Hardware-Ring ============
 # Der timing-SM PULLT aus dem TX-FIFO - die DMA schreibt rein.
 sm = rp2.StateMachine(0, timing_prog, freq=150_000_000,
-                      out_base=0, out_count=2)
+                      out_base=0)
 
 frame = array.array("I", build_frame())
 print("Frame:", len(frame), "Woerter =", len(frame) * 4, "Bytes")
