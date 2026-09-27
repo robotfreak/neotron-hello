@@ -7,9 +7,14 @@ import time
 
 freq(150_000_000)
 Pin(21, Pin.OUT).value(1)   # nOUTPUT_EN HIGH
+# Pin-Richtungen explizit (MicroPython out()-Pins: OUTPUT-Direction
+# wird vom PIO gesetzt, aber machine.Pin-Vorlauf schadet nicht):
+for _p in range(14):
+    Pin(_p, Pin.OUT)
 
 # EXAKT das laufende CP-PIO-Programm:
-@rp2.asm_pio(out_init=0x3FFF, out_shiftdir=rp2.PIO.SHIFT_RIGHT,
+@rp2.asm_pio(out_init=(rp2.PIO.OUT_HIGH,) * 14,
+             out_shiftdir=rp2.PIO.SHIFT_RIGHT,
              autopull=False, pull_thresh=32)
 def timing_prog():
     pull()
@@ -53,8 +58,7 @@ def build_frame():
 frame = array.array("I", build_frame())
 print("Frame:", len(frame), "=", len(frame) * 4, "Bytes")
 
-sm = rp2.StateMachine(0, timing_prog, freq=150_000_000, out_base=0,
-                      set_base=0)
+sm = rp2.StateMachine(0, timing_prog, freq=150_000_000, out_base=0)
 d = rp2.DMA()
 c = d.pack_ctrl(inc_write=False, ring_size=13, ring_sel=False, treq_sel=0)
 d.config(read=frame, write=sm, count=0xFFFFFFFF, ctrl=c, trigger=True)
