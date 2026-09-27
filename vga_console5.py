@@ -174,8 +174,8 @@ import tinybasic
 
 shift = [False]
 MAX_CHARS = 26
-TEXT_ROW_A = 25
-TEXT_ROW_B = 35
+TEXT_ROW_A = 52   # f=416-431 -> Screen 199-214 (S=217-Modell: (f+308) mod 525)
+TEXT_ROW_B = 55   # f=440-455 -> Screen 223-238
 
 def render_line(text):
     rows = []
@@ -255,7 +255,7 @@ def bmc_readline(prompt=""):
     pend_a = prompt + "_"
     while True:
         poll_skip[0] += 1
-        if poll_skip[0] >= 25:
+        if poll_skip[0] >= 5:   # 10 Polls/s (0.1s) - FIFO 8 tief
             poll_skip[0] = 0
             resp = bmc_read(0x40, 9)  # OHNE nirq-Gate (bewiesen: INT kommt nie)
             if resp and resp[0] == 0xA0 and resp[1] > 0 and resp[1] != 0xFF:
