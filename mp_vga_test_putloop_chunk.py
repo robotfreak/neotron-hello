@@ -31,23 +31,6 @@ W_BACK = word(CY_BACK)
 W_VIS_RED = word(CY_VIS, color=RED)
 W_BLANK = word(CY_VIS)
 
-frame = array("I", [0] * (525 * 4))
-i = 0
-for _ in range(480):
-    frame.extend((W_FRONT, W_SYNC, W_BACK, W_VIS_RED))
-for _ in range(10):
-    frame.extend((W_FRONT, W_SYNC, W_BACK, W_BLANK))
-for _ in range(2):
-    frame.extend((word(CY_FRONT, vsync_low=True),
-                  word(CY_SYNC, True, True),
-                  word(CY_BACK, vsync_low=True),
-                  word(CY_VIS, vsync_low=True)))
-for _ in range(6):
-    frame.extend((W_FRONT, W_SYNC, W_BACK, W_BLANK))
-# VORAB auffuellen? Nein: Der Frame ist 525*4 = 2100 - der Chunk-
-# Weg: put(frame) schiebt ALLE - der PIO verbraucht je Wort 8 us:
-# 2100 Wörter = 16.8 ms - der put blockt bis der FIFO Platz hat
-# (der PIO verbraucht live) - DAS ist ein SYNCHRONER Feed-Loop.
 frame = array("I", [])
 for _ in range(480):
     frame.extend((W_FRONT, W_SYNC, W_BACK, W_VIS_RED))

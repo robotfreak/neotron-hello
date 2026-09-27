@@ -48,12 +48,9 @@ def build_frame():
                   word(CY_SYNC, True, True),
                   word(CY_BACK, vsync_low=True),
                   word(CY_VIS, vsync_low=True)))
-    for _ in range(6):
+    for _ in range(20):   # Back-Porch (Ring: 512 = 480+10+2+20!)
         f.extend((W_FRONT, W_SYNC, W_BACK, W_BLANK))
-    # Auf 2048 auffuellen (Ring!):
-    while len(f) < 2048:
-        f.append(W_BLANK)
-    return f
+    return f   # exakt 512 Zeilen = 2048 Woerter = 8192 B = 2^13-Ring
 
 frame = array.array("I", build_frame())
 print("Frame:", len(frame), "=", len(frame) * 4, "Bytes")

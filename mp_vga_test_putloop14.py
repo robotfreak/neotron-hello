@@ -51,7 +51,7 @@ try:
                       word(CY_BACK, vsync_low=True),
                       word(CY_VIS, vsync_low=True)):
                 sm.put(w)
-        for _ in range(6):
+        for _ in range(33):   # Back-Porch (525 = 480+10+2+33!)
             for w in (W_FRONT, W_SYNC, W_BACK, W_BLANK):
                 sm.put(w)
         led.toggle()
