@@ -5,6 +5,7 @@ freq(150_000_000)
 led = Pin(25, Pin.OUT)
 hs = Pin(0, Pin.OUT)
 vs = Pin(1, Pin.OUT)
+Pin(21, Pin.OUT).value(1)   # GP21 = nOUTPUT_EN (VGA-Treiber-Enable!)
 print("Toggle-Loop laeuft - 10 Sekunden")
 t0 = time.ticks_ms()
 n = 0
