@@ -162,7 +162,7 @@ _c = {'Q':0x15,'W':0x1D,'E':0x24,'R':0x2D,'T':0x2C,'Y':0x35,'U':0x3C,
 for ch, code in _c.items(): SC[code] = (ch.lower(), ch)
 SC[0x29] = (' ', ' ')
 for i, code in enumerate([0x16,0x1E,0x26,0x25,0x2E,0x36,0x3D,0x3E,0x46,0x45]):
-    SC[code] = (str(i + 1), "!@#$%^&*()"[i])
+    SC[code] = (str(i + 1), "!\"§$%&/()="[i])   # DEUTSCHE Tastatur (Shift-Ebene)
 SC[0x66] = (chr(8), chr(8))
 SC[0x5A] = (chr(13), chr(13))
 SC[0x54] = ('[', '{'); SC[0x5B] = (']', '}')
@@ -174,8 +174,8 @@ import tinybasic
 
 shift = [False]
 MAX_CHARS = 26
-TEXT_ROW_A = 57   # f=456-471: der bewiesene sichtbare Bereich (v9: Text f=462-477 KOMPLETT sichtbar)
-TEXT_ROW_B = 54   # f=432-447, ueber A (Statuszeilen-Design: Eingabe unten)
+TEXT_ROW_A = 25   # Zurueck auf Lauf-1-Zustand (Balken sichtbar, beweisnah)
+TEXT_ROW_B = 35   # Zeile B unter A (wie Lauf 1)
 
 def render_line(text):
     rows = []
