@@ -203,13 +203,13 @@ def write_frame(text_a, text_b):
     frame = array.array("I")
     ra = render_line(text_a) if text_a else None
     rb = render_line(text_b) if text_b else None
-    MARK = (0, 100, 200, 300, 400)
-    YELLOW = (15 << 6)   # Gruen voll = gelb mit Rot+Blau? R-2R: nur Gruen = gruen
+    # RULER-Kalibrierung: Marker je 20 Frame-Zeilen, Nummer per
+    # Streifenbreite (1-4 Zeilen je Marker-Index mod 5):
     for vline in range(480):
         if vline % 64 == 63:
             time.sleep(0)
         frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_BACK)
-        if vline % 100 < 3:   # 3-Zeilen-Marker bei f=0/100/200/300/400
+        if vline % 20 == 0:   # 1-Zeilen-Marker alle 20 Frame-Zeilen
             frame.append(word(CY_VIS, color=(15 << 6)))
             continue
         if TEXT_ROW_A * 8 <= vline < TEXT_ROW_A * 8 + 16:
