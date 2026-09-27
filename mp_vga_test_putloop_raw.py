@@ -10,8 +10,7 @@ for _p in range(14):
 
 # Das CP-Beweis-PIO-Programm, vorausgemontiert (adafruit_pioasm):
 # pull; out pins,14; set x,0; out x,14; jmp x--, 4
-RAW = bytes([0xA0, 0x80, 0x0E, 0x60, 0x20, 0xE0, 0x2E, 0x60, 0x44, 0x00])
-# (Little-Endian-16Bit-Woerter je 2 Bytes)
+RAW = (0x80A0, 0x600E, 0xE020, 0x602E, 0x0044)   # adafruit_pioasm-Bytes als Tuple
 
 def word(cycles, hsync_low=False, vsync_low=False, color=0):
     b0 = 0 if hsync_low else 1
