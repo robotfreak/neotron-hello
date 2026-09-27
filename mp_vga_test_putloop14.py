@@ -7,7 +7,7 @@ Pin(21, Pin.OUT).value(1)
 for _p in range(14):
     Pin(_p, Pin.OUT)
 
-@rp2.asm_pio(out_init=(rp2.PIO.OUT_HIGH,) * 14,
+@rp2.asm_pio(out_init=(rp2.PIO.OUT_HIGH, rp2.PIO.OUT_HIGH) + (rp2.PIO.OUT_LOW,) * 12,   # IDLE: GP0/1 HIGH (Sync), GP2-13 LOW (schwarz)
              out_shiftdir=rp2.PIO.SHIFT_RIGHT,
              autopull=False, pull_thresh=32)
 def timing_prog():
