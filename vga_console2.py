@@ -160,7 +160,7 @@ for vline in range(480):
 for _ in range(10):
     frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_BACK); frame.append(word(CY_VIS))
 for _ in range(2):
-    frame.extend((word(CY_FRONT), word(CY_SYNC, True, True), word(CY_BACK, True, True), word(CY_VIS, True, True)))
+    frame.extend((word(CY_FRONT), word(CY_SYNC, True, True), word(CY_BACK), word(CY_VIS, vsync_low=True)))
 for _ in range(33):
     frame.append(W_FRONT); frame.append(W_SYNC); frame.append(W_BACK); frame.append(word(CY_VIS))
 print("[3] Frame:", len(frame), "Woerter =", len(frame) * 4, "Bytes")
