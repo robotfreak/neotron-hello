@@ -1,0 +1,9 @@
+# Rust-Build-Artefakte
+target/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# CircuitPython/Thonny lokale Artefakte
+*.mpy
