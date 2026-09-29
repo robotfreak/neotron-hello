@@ -16,6 +16,23 @@ static void host_out(char c) { if (outn < (int)sizeof(outbuf) - 1) outbuf[outn++
 static const char* inq[32];
 static int inq_n = 0, inq_i = 0;
 
+// SAVE/LOAD-Hooks (die RAM-Datei je je je je je je je je je je):
+static char filebuf[8][3072]; static char filenam[8][24]; static int nfiles = 0;
+static int host_save(const char* name, const char* src)
+{
+	if (nfiles >= 8) return 1;
+	strncpy(filenam[nfiles], name, 23); filenam[nfiles][23] = 0;
+	strcpy(filebuf[nfiles], src);
+	nfiles++;
+	return 0;
+}
+static int host_load(const char* name, char* dst, int max)
+{
+	for (int i = 0; i < nfiles; i++)
+		if (strcmp(filenam[i], name) == 0) { strncpy(dst, filebuf[i], max - 1); dst[max - 1] = 0; return 0; }
+	return 1;
+}
+
 static char host_readline(char* buf, int max, const char* prompt)
 {
 	// Der Prompt: DAS: Der zum Output (wie Python-input(prompt)):
@@ -40,6 +57,8 @@ static void bas_reset(void)
 	bas.rnd_seed = 12345;
 	bas.out_hook = host_out;
 	bas.readline_hook = host_readline;
+	bas.save_hook = host_save;
+	bas.load_hook = host_load;
 	bas.errline = -1;
 	outn = 0;
 }
@@ -250,6 +269,27 @@ int main(void)
 			"RUN",
 		};
 		test_run("GOSUB nested", scr, 9, NOS, 0, "SUB2\nSUB1\nZURUECK\n");
+	}
+
+	// 21. SAVE/LOAD
+	{
+		const char* scr[] = {
+			"10 PRINT \"SUB\"",
+			"20 END",
+			"SAVE \"DEMO1\"",
+			"NEW",
+			"LIST",
+			"LOAD \"DEMO1\"",
+			"LIST",
+			"RUN",
+		};
+		test_run("SAVE/LOAD", scr, 8, NOS, 0,
+			"OK\nOK\n(leer)\nOK\n10 PRINT \"SUB\"\n20 END\nSUB\n");
+	}
+	// 22. LOAD nicht vorhanden
+	{
+		const char* scr[] = { "LOAD \"NADA\"" };
+		test_run("LOAD fehlt", scr, 1, NOS, 0, "Fehler: Datei nicht gefunden\n");
 	}
 
 	printf("\n%d/%d Tests bestanden\n", total - fails, total);

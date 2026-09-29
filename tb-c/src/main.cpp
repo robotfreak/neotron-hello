@@ -13,6 +13,8 @@
 
 #include "../include.h"
 #include "basic.h"
+#include "sdspi.h"
+#include "fat16.h"
 
 // halt on error, blinking LED (Adafruit Feather RP2350 HSTX: LED = GPIO7)
 #undef LED_PIN
@@ -273,12 +275,35 @@ static char BasReadLineHook(char* buf, int max, const char* prompt)
 // ==== REPL-Zustand (der Prompt '] ')
 static sDispHstxVSlot* slot;
 
+// ==== SD-Card + FAT16 State ====
+static int SdOk = 0;   // 0 = keine Karte / Mount-Fehler
+
+static int BasSaveHook(const char* name, const char* src)
+{
+	if (!SdOk) return 1;
+	return f16_write_file(name, (const u8*)src, StrLen(src)) == F16_ERR_OK ? 0 : 1;
+}
+
+static int BasLoadHook(const char* name, char* dst, int max)
+{
+	if (!SdOk) return 1;
+	u8 e83[11];
+	f16_name_to83(name, e83);
+	FatFile ff;
+	if (f16_dir_find(e83, &ff) != F16_ERR_OK) return 1;
+	u32 got = 0;
+	if (f16_read_file(&ff, (u8*)dst, max - 1, &got) != F16_ERR_OK) return 1;
+	dst[got] = 0;
+	if (got > (u32)(max - 1)) dst[max - 1] = 0;
+	return 0;
+}
+
 // die BasIs-Demo-Bank (die Beispiele beim Start)
 static const char* Welcome[] = {
 	 "*** TINY BASIC v1.0 (C-Port) ***",
 	 "Feather RP2350 + DispHSTX 80x30 + PS/2",
 	 "",
-	 "Befehle: NEW LIST RUN BYE",
+	 "Befehle: NEW LIST RUN BYE SAVE \"N\" LOAD \"N\"",
 	 "Beispiel: 10 PRINT \"HALLO\"  dann RUN",
 	 "",
 };
@@ -295,6 +320,8 @@ int main()
 	bas.out_hook = BasOutHook;
 	bas.readline_hook = BasReadLineHook;
 	bas.errline = -1;
+	bas.save_hook = BasSaveHook;
+	bas.load_hook = BasLoadHook;
 
 	sDispHstxVModeState* vmode = &DispHstxVMode;
 	DispHstxVModeInitTime(vmode, &DispHstxVModeTimeList[vmodetime_640x480_fast]);
@@ -318,6 +345,27 @@ int main()
 		while (*w) ConsoleChar(*w++);
 		ConsoleChar('\n');
 	}
+
+	// ==== SD-Card init + FAT16 Mount (Haken: save_hook/load_hook)
+	SdOk = 0;
+	if (SdInit() == 0)
+	{
+		fat.io.read_block = SdReadBlock;
+		fat.io.write_block = SdWriteBlock;
+		fat.io.nsectors = SdSectors();
+		if (f16_mount() == F16_ERR_OK)
+			SdOk = 1;
+	}
+	char sbuf[80];
+	if (SdOk)
+		MemPrint(sbuf, 80, "SD: OK  %lu MB (FAT16/32, SAVE/LOAD bereit)  ",
+			(unsigned long)(SdDiagSec / 2048));
+	else
+		MemPrint(sbuf, 80, "SD: FEHLT  E=%d R1=%02X %02X %02X N41=%d ECHO=%08lX ",
+			(int)SdDiagErr, (unsigned)SdDiagR1_0, (unsigned)SdDiagR1_8,
+			(unsigned)SdDiagR1_41, (int)SdDiagN41, (unsigned long)SdDiagEcho);
+	PutString(0, 1, sbuf, 0x2F);
+	{ int bl = StrLen(sbuf); PutString(bl, 1, "                    ", 0x2F); }
 
 	// ==== initialize PS/2 keyboard
 	GPIO_Init(PS2_CLK_PIN);

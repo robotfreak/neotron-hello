@@ -6,8 +6,11 @@ Der BASIC-Interpreter ist ein 1:1-C-Port des Python-tinybasic.py
 
 ## Struktur
 - `src/basic.h`  - Interpreter (Tokenizer/Expr/Statements/REPL, header-only)
-- `src/main.cpp` - ATEXT-Textmodus 80x30 + PS/2-Treiber + Line-Editor + REPL
-- `tests/tbtest.c` - Host-Test-Suite (gcc, 20 Tests)
+- `src/fat16.h`  - Mini-FAT16/FAT32 (MBR/Boot/Root/Cluster, Block-I/O via Hook)
+- `src/sdspi.h`  - SD-Karte via SPI (CMD0/CMD8/ACMD41, CSD, 512-B-Blocks)
+- `src/main.cpp` - ATEXT-Textmodus 80x30 + PS/2 + Line-Editor + REPL + SD-Mount
+- `tests/tbtest.c`   - BASIC-Host-Tests (gcc, 22 Tests: 20 Basic + SAVE/LOAD)
+- `tests/fat16test.c`- FAT-Host-Tests (RAM-Disk, 20 Tests)
 
 ## Host-Tests (pi)
     cd tests
@@ -22,7 +25,19 @@ im Workshop-Log / README der TEXTDEMO-Umgebung):
 - DVI-Bild (HSTX GP12-19, Adafruit-HDMI-Adapter) ✅
 - ATEXT 80x30 CGA-Farben (COLOR16(G,B,R)-Rotation, char/attr interleaved) ✅
 - PS/2 Set-2 UK (GP0=CLK, GP1=DAT; l=0x4B ;=0x4C '=0x52 1=0x16) ✅
-- 20/20 Host-Tests + RUN/LIST/NEW live auf dem Monitor ✅
+- 22/22 BASIC-Host-Tests (+ SAVE/LOAD, LOAD-Fehlerpfad) ✅
+- 20/20 FAT16-Host-Tests (RAM-Disk: mkfs/read/write/delete) ✅
+- SD-Card am Board ✅ ("SD: OK", SDHC 4GB erkannt, Sektoren via CSD)
+- SAVE "N" / LOAD "N" live am Board (8.3-Namen, .BAS im Root, am PC lesbar) ✅
+
+## SD-Fallen (bewiesen durch Debug)
+- CMD8-CRC ist 0x87 (nicht 0x95) - sonst ignoriert die Karte CMD8.
+- CMD8-Echo sind GENAU 4 Bytes nach R1 (00 00 01 AA) - Dummy-Bytes
+  vor dem Echo lesen verschiebt die Pruefung -> Karte gilt als SDv1
+  -> ACMD41 ohne HCS -> SDHC bleibt ewig "idle" (ACMD41=0x01).
+- ACMD41 fuer SDHC mit Arg 0x40000000 (HCS-Bit) - sonst kein Ready.
+- Diagnose-Trick: R1 von CMD0/CMD8/ACMD41 + Loop-Count in die
+  Statuszeile drucken (Zeile 2) - hat den Fehler sofort gezeigt.
 
 ## Bekannte Fallen
 - `GPIO_Init` (FUNCSEL=SIO) muss vor JEDEM GPIO-Output gerufen werden,

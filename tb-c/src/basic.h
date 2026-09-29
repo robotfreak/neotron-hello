@@ -16,6 +16,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 // ---- Typen: PicoLibSDK liefert u8/s32 via global.h (ARM-Build),
 //      Host-Test (gcc auf dem Pi, nicht-ARM) definiert sie selbst ----
@@ -24,6 +25,8 @@
 #define _BAS_TYPES_OK
 typedef unsigned char u8;
 typedef signed int s32;
+typedef unsigned int u32;
+typedef unsigned short u16;
 #endif
 #endif
 
@@ -34,6 +37,7 @@ typedef signed int s32;
 #define BAS_MAXGOSUB  16
 #define BAS_MAXFOR    8
 #define BAS_MAXMSG    96
+#define BAS_TEXTMAX   3072
 
 // Token: kind
 #define TOK_NONE 0
@@ -79,11 +83,15 @@ typedef struct {
 	BasTok toks[BAS_MAXTOK];
 	int ntok;
 	// RND
-	s32 rnd_state;           // LCG-Zustand
-	s32 rnd_seed;            // Seed (vom Board gesetzt)
+	u32 rnd_state;           // LCG-Zustand
+	u32 rnd_seed;            // Seed (vom Board gesetzt)
+	char textbuf[BAS_TEXTMAX];
 	// I/O-Hooks
 	void (*out_hook)(char c);
 	char (*readline_hook)(char* buf, int max, const char* prompt);
+	// SAVE/LOAD-Hooks (liefert 0 = ok, sonst Fehler-Code)
+	int (*save_hook)(const char* name, const char* src);
+	int (*load_hook)(const char* name, char* dst, int max);
 	// Fehlerzustand
 	jmp_buf jb;
 	char msg[80];
@@ -187,7 +195,12 @@ static int bas_op_is(const BasTok* p, const char* op)
 }
 
 // ---- Ausdruecke (rekursiv, wie Python-expr/expr_cmp/add/mul/atom) ----
-static void bas_fail(const char* m) { bas_outs(m); longjmp(bas.jb, 1); }
+static void bas_fail(const char* m)
+{
+	strncpy(bas.msg, m, sizeof(bas.msg) - 1);
+	bas.msg[sizeof(bas.msg) - 1] = 0;
+	longjmp(bas.jb, 1);
+}
 
 static s32 bas_expr(BasToks* t);
 
@@ -576,6 +589,66 @@ static BasExecRes bas_exec_stmt(BasToks* t)
 	{
 		t->i++;
 		bas_outs("\033[2J\033[H");
+		return r;
+	}
+	if (!strcmp(v, "SAVE"))
+	{
+		t->i++;
+		const BasTok* ps = bas_peek(t);
+		if (ps->kind != TOK_STR) bas_fail("SAVE braucht \"NAME\"");
+		const char* name = ps->str;
+		t->i++;
+		// der Quelltext je je je je je je je je je je je je je je je
+		char* src = bas.textbuf;
+		int pos = 0;
+		for (int i = 0; i < bas.nprog; i++)
+		{
+			int nl = snprintf(&src[pos], BAS_TEXTMAX - pos, "%d %s\n",
+				(int)bas.prog[i].num, bas.prog[i].text);
+			if (nl < 0 || pos + nl >= BAS_TEXTMAX) { bas_fail("Programm zu gross"); }
+			pos += nl;
+		}
+		if (bas.save_hook == 0) bas_fail("Kein Filesystem");
+		int rc = bas.save_hook(name, src);
+		if (rc != 0) bas_fail("SAVE fehlgeschlagen");
+		bas_outs("OK\n");
+		return r;
+	}
+	if (!strcmp(v, "LOAD"))
+	{
+		t->i++;
+		const BasTok* ps = bas_peek(t);
+		if (ps->kind != TOK_STR) bas_fail("LOAD braucht \"NAME\"");
+		const char* name = ps->str;
+		t->i++;
+		if (bas.load_hook == 0) bas_fail("Kein Filesystem");
+		char dst[BAS_TEXTMAX];
+		int rc = bas.load_hook(name, dst, BAS_TEXTMAX);
+		if (rc != 0) bas_fail("Datei nicht gefunden");
+		// das Programm je je je je je je je je je je je je je je je:
+		bas.nprog = 0;
+		char* line = dst;
+		while (*line)
+		{
+			char* nl = strchr(line, '\n');
+			if (nl) *nl = 0;
+			char* sp = strchr(line, ' ');
+			if (sp)
+			{
+				int num = atoi(line);
+				const char* rest = sp + 1;
+				if (num > 0 && bas.nprog < BAS_MAXLINES)
+				{
+					bas.prog[bas.nprog].num = num;
+					strncpy(bas.prog[bas.nprog].text, rest, BAS_LINEMAX - 1);
+					bas.prog[bas.nprog].text[BAS_LINEMAX - 1] = 0;
+					bas.nprog++;
+				}
+			}
+			if (!nl) break;
+			line = nl + 1;
+		}
+		bas_outs("OK\n");
 		return r;
 	}
 	if (v[1] == 0)
