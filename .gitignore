@@ -1,4 +1,4 @@
-# Rust-Build-Artefakte
+# Rust-Build-Artefakte (geparkter BIOS-Zweig)
 target/
 
 # Python cache files
@@ -7,3 +7,25 @@ __pycache__/
 
 # CircuitPython/Thonny lokale Artefakte
 *.mpy
+
+# DispHSTX build artifacts
+build/
+*.o
+*.bin
+*.uf2
+*.elf
+*.hex
+*.lst
+*.sym
+*.siz
+*.map
+
+# Host-Test-Binaries (BASIC-C-Port)
+tests/tbtest
+tests/tbmini*/
+
+
+# vendored pico-sdk (nur Build-Referenz, nicht Teil des Projekts)
+pico-sdk/
+# DispHSTX-Klon (Fremd-SDK, lokal builden, nicht committen)
+DispHSTX/
