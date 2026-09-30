@@ -36,6 +36,7 @@ static const u16 pal16[16] = {
 // ==== text screen
 #define TEXTCOLS	80
 #define TEXTROWS	30
+#define STATUSROW	29		// die unterste Zeile: fixe Statuszeile (scrollt nicht)
 #define TEXTPITCH	(TEXTCOLS*2)
 static u8 ALIGNED TextBuf[TEXTPITCH*TEXTROWS];
 static u8 ALIGNED FontBuf[sizeof(FontBold8x16)];
@@ -77,8 +78,8 @@ static void ClearText(char ch, u8 attr)
 // scroll screen up 1 row
 static void ScrollText()
 {
-	memmove(TextBuf, &TextBuf[TEXTPITCH], TEXTPITCH*(TEXTROWS-1));
-	u8* line = &TextBuf[(TEXTROWS-1)*TEXTPITCH];
+	memmove(TextBuf, &TextBuf[TEXTPITCH], TEXTPITCH*(TEXTROWS-2));
+	u8* line = &TextBuf[(TEXTROWS-2)*TEXTPITCH];
 	for (int col = 0; col < TEXTCOLS; col++)
 	{
 		line[col*2] = ' ';
@@ -118,10 +119,10 @@ static void ConsoleChar(char ch)
 			CurRow++;
 		}
 	}
-	if (CurRow >= TEXTROWS)
+	if (CurRow > TEXTROWS-2)      // Statuszeile (29) ausnehmen
 	{
 		ScrollText();
-		CurRow = TEXTROWS-1;
+		CurRow = TEXTROWS-2;
 	}
 }
 
