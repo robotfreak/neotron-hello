@@ -1,6 +1,8 @@
-// sdspi.h - SPI-Treiber fuer SD-Karten (der Feather RP2350)
+// sdspi.h - SPI-Treiber fuer SD-Karten (Feather RP2350 oder Pico 2W)
 // Header-only, nutzt die PicoLibSDK-SPI-Grundfunktion.
 // Pins (Feather): CS=GP5, SCK=GP22, MOSI=GP23, MISO=GP20.
+// Pins (Pico 2W): MOSI=GP3 (GP23/GP24/GP25/GP29 sind am CYW43 tot,
+//   GP19=HSTX) -> nur SD_MOSI_PIN aendern. MISO=GP20, SCK=GP22, CS=GP5.
 
 #ifndef SDSPI_H
 #define SDSPI_H
@@ -10,7 +12,7 @@
 
 #define SD_CS_PIN    5
 #define SD_SCK_PIN   22
-#define SD_MOSI_PIN  23
+#define SD_MOSI_PIN  3   // Pico 2W: war 23 (Feather)!
 #define SD_MISO_PIN  20
 #define SD_SPI       0
 #ifndef FAT_SECTORSIZE
