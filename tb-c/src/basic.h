@@ -349,7 +349,8 @@ static void bas_do_input(BasToks* t)
 	if (t->i < t->n && t->t[t->i].kind == TOK_STR)
 	{
 		strcpy(prompt, t->t[t->i].str);
-		strcat(prompt, " ");
+		int pl = strlen(prompt);
+		if (pl > 0 && prompt[pl-1] != ' ' && prompt[pl-1] != '\t') strcat(prompt, " ");
 		t->i++;
 		if (t->i < t->n && t->t[t->i].kind == TOK_OP && t->t[t->i].op[0] == ';') t->i++;
 	}

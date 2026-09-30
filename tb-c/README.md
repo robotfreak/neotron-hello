@@ -50,3 +50,16 @@ im Workshop-Log / README der TEXTDEMO-Umgebung):
 ## Offen
 - SD-Card (SAVE/LOAD im BASIC)
 - Workshop-Phase (Beispielprogramme + Bedienanleitung)
+
+## Beispiele (beispiele/)
+Alle getestet gegen die Host-Suite (tbex, 10/10 ok):
+- `zaehlen.bas` — FOR/NEXT-Zählschleife (erste Schritte)
+- `quadrate.bas` — Quadrattabelle, PRINT mit Semikolon
+- `gauss.bas` — Summe 1..100 (Akkumulator)
+- `schach.bas` — CLS + Schleife
+- `sterne.bas` — geschachtelte FOR (Treppe)
+- `tabelle.bas` — INPUT + Multiplikationstabelle
+- `bahn.bas` — Formatierung mit String-Feldern
+- `raten.bas` — Spiel: RND/INPUT/IF/GOTO (Zahlenraten 1-100)
+
+Namen ≤ 8 Zeichen = SD-Card-8.3-kompatibel (SAVE/LOAD "name").

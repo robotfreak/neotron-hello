@@ -1,0 +1,6 @@
+5 REM * * GAUSS 1+2+...+100 * *
+10 S=0
+20 FOR I=1 TO 100
+30 S=S+I
+40 NEXT I
+50 PRINT "SUMME = ";S

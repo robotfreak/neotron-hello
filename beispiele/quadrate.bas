@@ -1,0 +1,6 @@
+5 REM * * QUADRAFTABELLE * *
+10 PRINT "I  :  I*I"
+20 PRINT "--------------"
+30 FOR I=1 TO 15
+40 PRINT I;": ";I*I
+50 NEXT I
