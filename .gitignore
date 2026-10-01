@@ -29,3 +29,7 @@ tests/tbmini*/
 pico-sdk/
 # DispHSTX-Klon (Fremd-SDK, lokal builden, nicht committen)
 DispHSTX/
+
+# bbs-client: build + credentials
+c.bsh
+bbs-client/build/
