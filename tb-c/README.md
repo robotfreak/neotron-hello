@@ -48,8 +48,22 @@ im Workshop-Log / README der TEXTDEMO-Umgebung):
 - Scancode 0x0F ist F1 — die Zifferntaste '1' ist 0x16!
 
 ## Offen
-- SD-Card (SAVE/LOAD im BASIC)
-- Workshop-Phase (Beispielprogramme + Bedienanleitung)
+- WiFi-Phase 2 (Pico 2W: Telnet/Remote-BASIC, BBS-Mailbox) - eigenes Projekt
+- Neotron-PCB-HSTX→VGA-Adapter (spätere PCB-Rev)
+
+## Pico 2W-Port (bewiesen am Board, 30.09.2026)
+Umstieg Feather RP2350 → Pico 2W (Lochraster-Aufbau):
+- **SD-MOSI GP23→GP3** (GP23-29 intern am CYW43; funcsel-Tabelle bewies:
+  GP3=spi0_tx funcsel 1). CS=GP5, SCK=GP22, MISO=GP20 bleiben.
+- Onboard-LED hängt am CYW43 (WL_GPIO0), nicht an einem RP-GPIO — ohne
+  CYW43-Treiber (PicoLibSDK hat keinen) unbenutzbar. Externe LED an GP7.
+- ATEXT 80x30 + PS/2 (GP0/GP1) + SD (SPI0) + SAVE/LOAD: alles bewiesen ✅
+- HDMI-Pin-Reihenfolge (DVI-breakout config 0): GP12=D0+, GP13=D0-,
+  GP14=CLK+, GP15=CLK-, GP16=D2+, GP17=D2-, GP18=D1+, GP19=D1-.
+  NICHT die Picopad-Reihenfolge (die hat CLK an 12/13)!
+- USB-CDC-Diagnose: `UsbPrint` droppt still, wenn kein Host-CDC mounted;
+  PC-USB-Stau kann ttyACM0 killen (PC-Restart nötig) — Diagnose-Firmware
+  mit USB zuerst gegen die Minimal-Firmware (BOOTDIAG) testen.
 
 ## Beispiele (beispiele/)
 Alle getestet gegen die Host-Suite (tbex, 10/10 ok):

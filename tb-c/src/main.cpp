@@ -4,7 +4,7 @@
 //        ATEXT 80x30 text mode + PS/2 keyboard + BASIC-Interpreter
 //            based on DispHSTX (Panda381 / Miroslav Nemecek)
 //
-// Wiring (Feather RP2350, HSTX DVI on GPIO12-19):
+// Wiring (Pico 2W, HSTX DVI on GPIO12-19, SD-MOSI=GP3):
 //   GP0 = PS/2 Clock, GP1 = PS/2 Data (pull-ups to 3V3!)
 //   PS/2 +5V pin -> VBUS (5V), GND common
 //   Mini-DIN 6 (socket front view): 1=Data, 3=GND, 4=+5V, 5=Clock
@@ -12,6 +12,13 @@
 // ****************************************************************************
 
 #include "../include.h"
+
+// Diagnose-Ausgabe nur mit USB-stdio (sonst no-op)
+#if USE_USB_STDIO
+#define DIAGUSB(...) UsbPrint(__VA_ARGS__)
+#else
+#define DIAGUSB(...)
+#endif
 #include "basic.h"
 #include "sdspi.h"
 #include "fat16.h"
@@ -309,6 +316,28 @@ static const char* Welcome[] = {
 	 "",
 };
 
+volatile int BootStufe = 0;  // Diagnose: letzte Boot-Stufe (USB)
+
+// SafeWaitVSync: wartet auf VSync, meldet aber ueber USB, wenn der Video-
+// DMA keine Zeilen fortlaufend zaehlt (Verdiagnose "kein Bild").
+static int NoVsyncCount = 0;
+static void SafeWaitVSync()
+{
+	// wait end of vsync (max 1 frame)
+	int n = 0;
+	while (DispHstxIsVSync() && (n < 1000000)) { n++; dmb(); }
+	int n2 = 0;
+	while (!DispHstxIsVSync() && (n2 < 1000000)) { n2++; dmb(); }
+	if (n2 >= 1000000)
+	{
+		// keine Zeilenzaehlung -> Video-DMA tot
+		NoVsyncCount++;
+		if (NoVsyncCount == 1) DIAGUSB("DIAG: NO VSYNC - Video-DMA zaehlt nicht!\n");
+		if ((NoVsyncCount % 120) == 0) DIAGUSB("ALIVE STUFE=%d SD=%d NOVSYNC=%d\n",
+			BootStufe, (int)SdOk, NoVsyncCount);
+	}
+}
+
 int main()
 {
 	// ==== initialize videomode 640x480@60Hz, 1 strip, 1 ATEXT slot
@@ -324,6 +353,7 @@ int main()
 	bas.save_hook = BasSaveHook;
 	bas.load_hook = BasLoadHook;
 
+	DIAGUSB("BOOT 1: basic init ok\n"); BootStufe = 1;
 	sDispHstxVModeState* vmode = &DispHstxVMode;
 	DispHstxVModeInitTime(vmode, &DispHstxVModeTimeList[vmodetime_640x480_fast]);
 
@@ -335,10 +365,11 @@ int main()
 	CHECK_ERR();
 
 	DispHstxSelDispMode(DISPHSTX_DISPMODE_DVI, vmode);
+	DIAGUSB("BOOT 2: video started 640x480 DVI\n"); BootStufe = 2;
 
 	// ==== welcome banner (weiß auf blau)
 	for (int col = 0; col < TEXTCOLS; col++) PutCharAt(col, 0, ' ', 0x1F);
-	PutString(1, 0, " TINYBASIC 80x30  C-Port  -  Feather RP2350 HSTX ", 0x1F);
+	PutString(1, 0, " TINYBASIC 80x30  C-Port  -  Pico 2W HSTX ", 0x1F);
 	CurRow = 2;
 	for (unsigned i = 0; i < sizeof(Welcome)/sizeof(Welcome[0]); i++)
 	{
@@ -368,6 +399,7 @@ int main()
 	PutString(0, 1, sbuf, 0x2F);
 	{ int bl = StrLen(sbuf); PutString(bl, 1, "                    ", 0x2F); }
 
+	BootStufe = 3;
 	// ==== initialize PS/2 keyboard
 	GPIO_Init(PS2_CLK_PIN);
 	GPIO_Init(PS2_DAT_PIN);
@@ -385,11 +417,15 @@ int main()
 	GPIO_IRQEnable(PS2_CLK_PIN, IRQ_EVENT_EDGELOW);
 	NVIC_IRQEnable(IRQ_IO_BANK0);
 
+	BootStufe = 4;
+
 	// ==== hardware cursor
 	slot = &vmode->strip[0].slot[0];
 	slot->curbeg = 14;
 	slot->curend = 15;
 	slot->curspeed = 12;
+
+	DIAGUSB("BOOT 3: SD=%d REPL ready\n", (int)SdOk); BootStufe = 5;
 
 	// ==== REPL loop (der Prompt '] ', die Zeile je Enter)
 	char dbuf[64];
@@ -397,7 +433,7 @@ int main()
 	int promptflag = 0;
 	while (True)
 	{
-		DispHstxWaitVSync();
+		SafeWaitVSync();
 
 		slot->currow = (u8)(CurRow & 0xFF);
 		slot->curpos = (u8)(CurCol & 0xFF);
@@ -407,16 +443,24 @@ int main()
 		GPIO_Out(7, (ledtimer >= 90) ? 1 : 0);
 		if (ledtimer >= 120) ledtimer = 0;
 
+		// Diagnose: Boot-Marken zyklisch ueber USB (alle 2 s = 120 Frames)
+		static int bootdiagtimer = 0;
+		bootdiagtimer++;
+		if (bootdiagtimer >= 120)
+		{
+			bootdiagtimer = 0;
+			DIAGUSB("ALIVE STUFE=%d SD=%d\n", BootStufe, (int)SdOk);
+		}
+
 		// Diagnose (Statuszeile unten) + RAW-Scancode-Debug
-		MemPrint(dbuf, 64, "IRQ=%d BYTES=%d RAW=%02X %02X %02X %02X ",
-			IrqCount,
+		MemPrint(dbuf, 64, "IRQ=%d CNT=%d RAW=%02X %02X DAT=%d CLK=%d ",
+			IrqCount, (int)Ps2Count,
 			(unsigned)Ps2Buf[(Ps2Rd + 0) & 15],
 			(unsigned)Ps2Buf[(Ps2Rd + 1) & 15],
-			(unsigned)Ps2Buf[(Ps2Rd + 2) & 15],
-			(unsigned)Ps2Buf[(Ps2Rd + 3) & 15]);
+			(int)GPIO_In(PS2_DAT_PIN), (int)GPIO_In(PS2_CLK_PIN));
 		PutString(0, 29, dbuf, 0x0B);
-		PutString(StrLen(dbuf), 29, "            ", 0x0B);
-		PutString(60, 29, "1-Taste raw scancode", 0x0B);
+{ int bl = StrLen(dbuf); if (bl < 55) PutString(bl, 29, "                                   ",
+0x0B); }
 
 		// Prompt ] ausgeben (einmal je Zeilen-Start)
 		if (promptflag == 0)
