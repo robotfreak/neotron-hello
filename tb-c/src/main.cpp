@@ -410,15 +410,16 @@ int main()
 	{
 		// der KOMPLETTE Sektor-Dump der Diag-Read (32 Zeilen je 16 Bytes
 		// + der Offset) — der Scroll-Dump nach dem Banner:
-		PutString(0, 2, "SD-DUMP SEKTOR 0:", 0x2F);
+		PutString(0, 2, "SD-DUMP Sek0 (BPB+Ende):", 0x2F);
 		ConsoleChar('\n');
 		static u8 dump[512];
 		SdFlush();
-		SdDiagBlockDump(0, dump);   // liest Sek 0 KOMPLETT in dump[]
+		SdDiagBlockDump(0, dump);
 		static const char* HEX = "0123456789ABCDEF";
-		for (int row = 0; row < 32; row++)
+		static const int rows[8] = {0, 1, 2, 3, 0x1C, 0x1D, 0x1E, 0x1F};
+		for (int r = 0; r < 8; r++)
 		{
-			// der Offset ("000-00F:"-Stil, 5 Zeichen):
+			int row = rows[r];
 			ConsoleChar(HEX[(row >> 4) & 15]); ConsoleChar(HEX[row & 15]); ConsoleChar(':');
 			for (int c = 0; c < 16; c++)
 			{
@@ -427,9 +428,7 @@ int main()
 			}
 			ConsoleChar('\n');
 		}
-	}
-
-	BootStufe = 3;
+	};
 	// ==== initialize PS/2 keyboard
 	GPIO_Init(PS2_CLK_PIN);
 	GPIO_Init(PS2_DAT_PIN);
