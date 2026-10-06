@@ -380,22 +380,28 @@ int main()
 
 	// ==== SD-Card init + FAT16 Mount (Haken: save_hook/load_hook)
 	SdOk = 0;
+	SdDiagErr = 0;
+	int f16err = -99;
 	if (SdInit() == 0)
 	{
 		fat.io.read_block = SdReadBlock;
 		fat.io.write_block = SdWriteBlock;
 		fat.io.nsectors = SdSectors();
-		if (f16_mount() == F16_ERR_OK)
+		f16err = (int)f16_mount();
+		if (f16err == F16_ERR_OK)
 			SdOk = 1;
+		else SdDiagErr = 5;
 	}
+	else SdDiagErr = 10;
 	char sbuf[80];
 	if (SdOk)
 		MemPrint(sbuf, 80, "SD: OK  %lu MB (FAT16/32, SAVE/LOAD bereit)  ",
 			(unsigned long)(SdDiagSec / 2048));
 	else
-		MemPrint(sbuf, 80, "SD: FEHLT  E=%d R1=%02X %02X %02X N41=%d ECHO=%08lX ",
-			(int)SdDiagErr, (unsigned)SdDiagR1_0, (unsigned)SdDiagR1_8,
-			(unsigned)SdDiagR1_41, (int)SdDiagN41, (unsigned long)SdDiagEcho);
+		MemPrint(sbuf, 80, "SD: FEHLT  E=%d F16=%d R1=%02X %02X %02X N41=%d ECHO=%08lX M=%lu ",
+			(int)SdDiagErr, f16err, (unsigned)SdDiagR1_0, (unsigned)SdDiagR1_8,
+			(unsigned)SdDiagR1_41, (int)SdDiagN41, (unsigned long)SdDiagEcho,
+			(unsigned long)SdDiagSec);
 	PutString(0, 1, sbuf, 0x2F);
 	{ int bl = StrLen(sbuf); PutString(bl, 1, "                    ", 0x2F); }
 
