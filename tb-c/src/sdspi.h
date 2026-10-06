@@ -44,7 +44,7 @@ static inline void SdChipSelect(int on) { GPIO_Out(SD_CS_PIN, on ? 0 : 1); }
 static inline u8 SdSpiByte(u8 out)
 {
 	u8 r = 0;
-	SPI_Send8Recv(0, &out, &r, 1);
+	SPI_Send8Recv(SD_SPI, &out, &r, 1);
 	return r;
 }
 
@@ -95,8 +95,8 @@ static int SdInit(void)
 	SdChipSelect(0);
 
 	// PicoLibSDK-SPI0-Init (je je je je je je je je je je je je je):
-	SPI_Init(0, 400000);
-	if (SPI_GetBaudrate(0) == 0) {}
+	SPI_Init(SD_SPI, 400000);
+	if (SPI_GetBaudrate(SD_SPI) == 0) {}
 
 	// >= 80 Takte je je je je je je je je je je je je je je je je:
 	SdChipSelect(1);
@@ -160,7 +160,7 @@ static int SdInit(void)
 	}
 
 	// je je je je je je je je je je je je je je je je je je (der je je je je):
-	SPI_Init(0, 8000000);
+	SPI_Init(SD_SPI, 8000000);
 
 	// je je je je je je je je je je je je je je je je je je:
 	SdDiagTyp = SdType;
@@ -183,7 +183,7 @@ static int SdReadBlock(u32 lba, u8* buf)
 	while (SdSpiByte(0xFF) != 0xFE)
 		if (++n > 50000) { SdChipSelect(0); return 0; }
 	// je je je je je je je je je je je je je je je je je (der je SPI):
-	u8 dummy[512]; memset(dummy, 0xFF, 512); SPI_Send8Recv(0, dummy, buf, FAT_SECTORSIZE);
+	u8 dummy[512]; memset(dummy, 0xFF, 512); SPI_Send8Recv(SD_SPI, dummy, buf, FAT_SECTORSIZE);
 	SdSpiByte(0xFF); SdSpiByte(0xFF);   // CRC
 	SdChipSelect(0);
 	return 1;
@@ -196,7 +196,7 @@ static int SdWriteBlock(u32 lba, const u8* buf)
 	if (SdCmd(24, lba) != 0x00) { SdChipSelect(0); return 0; }
 	SdSpiByte(0xFF);      // je je je je je je je je
 	SdSpiByte(0xFE);      // Start-Token
-	SPI_Send8(0, buf, FAT_SECTORSIZE);
+	SPI_Send8(SD_SPI, buf, FAT_SECTORSIZE);
 	SdSpiByte(0xFF); SdSpiByte(0xFF);   // CRC
 	// je je je je je je je je je je je je je je (der je je je je):
 	u8 resp = SdSpiByte(0xFF);
