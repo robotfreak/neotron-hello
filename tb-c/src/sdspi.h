@@ -71,10 +71,20 @@ static u8 SdCmdC(u8 cmd, u32 arg, u8 crc)
 static u8 SdCmd(u8 cmd, u32 arg) { return SdCmdC(cmd, arg, 0x95); }
 
 static u8 SdAcmd(u8 cmd, u32 arg) { SdCmd(55, 0); return SdCmd(cmd, arg); }
+// SD-Flush: nach jedem abgebrochenen/unvollständigen Read — CS-High
+// + Dummy-Takte + kleine Pause = die Karte beendet ihren Daten-Stream
+static void SdFlush(void)
+{
+	SdChipSelect(0);
+	for (int i = 0; i < 16; i++) SdSpiByte(0xFF);
+	WaitMs(1);
+}
+
 // Diag-Dump-Read (ohne fat16-Ebene): NUR CMD17 (Sektor-Read mit Token!)
 // — der CMD10-CSD-Run hat KEIN 0xFE-Token und verfälschte die Diag-Werte!
 static u8 SdDiagBlock(u32 lba)
 {
+	SdFlush();
 	SdChipSelect(1);
 	u8 r1 = SdCmd(17, lba);
 	u8 oktok = 0;
@@ -201,16 +211,17 @@ static int SdInit(void)
 // ---------- Block-Read (der 512-B-Block) ----------
 static int SdReadBlock(u32 lba, u8* buf)
 {
+	SdFlush();   // v9: die Karte in den Ruhezustand (Stream-Residue weg!)
 	u8 r1;
 	if (SdType == 3) lba <<= 0;   // SDHC: je LBA-Adresse ok
 	SdChipSelect(1);
 	r1 = SdCmd(17, lba);
-	if (r1 != 0x00) { SdChipSelect(0); return 0; }
+	if (r1 != 0x00) { SdChipSelect(0); SdFlush(); return 0; }
 
 	// je je je je je je je je je je je je je je je je je (der 0xFE):
 	int n = 0;
 	while (SdSpiByte(0xFF) != 0xFE)
-		if (++n > 50000) { SdChipSelect(0); return 0; }
+		if (++n > 50000) { SdChipSelect(0); SdFlush(); return 0; }
 	// je je je je je je je je je je je je je je je je je (der je SPI):
 	u8 dummy[512]; memset(dummy, 0xFF, 512); SPI_Send8Recv(SD_SPI, dummy, buf, FAT_SECTORSIZE);
 	SdSpiByte(0xFF); SdSpiByte(0xFF);   // CRC
@@ -241,11 +252,12 @@ static int SdWriteBlock(u32 lba, const u8* buf)
 // ---------- Karten-Groesse (CSD via CMD10) ----------
 static u32 SdSectors(void)
 {
+	SdFlush();
 	SdChipSelect(1);
 	if (SdCmd(10, 0) != 0x00) { SdChipSelect(0); return 0; }
 	int n = 0;
 	while (SdSpiByte(0xFF) != 0xFE)
-		if (++n > 50000) { SdChipSelect(0); return 0; }
+		if (++n > 50000) { SdChipSelect(0); SdFlush(); return 0; }
 	u8 csd[16];
 	for (int i = 0; i < 16; i++) csd[i] = SdSpiByte(0xFF);
 	SdSpiByte(0xFF); SdSpiByte(0xFF);
