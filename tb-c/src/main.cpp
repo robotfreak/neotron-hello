@@ -397,18 +397,24 @@ int main()
 		rr1_17 = SdDiagBlock(0, 17);   // Sektor-0-Lesung roh
 	}
 	else SdDiagErr = 10;
-	char sbuf[80];
+	char sbuf[160];
 	if (SdOk)
-		MemPrint(sbuf, 80, "SD: OK  %lu MB (FAT16/32, SAVE/LOAD bereit)  ",
+		MemPrint(sbuf, 150, "SD: OK  %lu MB (FAT16/32, SAVE/LOAD bereit)  ",
 			(unsigned long)(SdDiagSec / 2048));
 	else
-		MemPrint(sbuf, 80, "SD: FEHLT  E=%d F16=%d N41=%d M=%lu R17=%02X T=%02X N=%d %02X %02X %02X %02X ",
+		MemPrint(sbuf, 150, "SD: FEHLT E=%d F16=%d M=%lu R17=%02X T=%02X N=%d "
+			"A:%02X%02X%02X%02X P:%02X%02X%02X%02X E:%02X%02X"
+			"%02X%02X ",
 			(int)SdDiagErr, f16err, (int)SdDiagN41, (unsigned long)SdDiagSec,
 			(unsigned)rr1_17, (unsigned)SdDiagTok, (int)SdDiagTokN,
 			(unsigned)SdDiagBlk[0], (unsigned)SdDiagBlk[1],
-			(unsigned)SdDiagBlk[2], (unsigned)SdDiagBlk[3]);
+			(unsigned)SdDiagBlk[2], (unsigned)SdDiagBlk[3],
+			(unsigned)SdDiagBlk[4], (unsigned)SdDiagBlk[5],
+			(unsigned)SdDiagBlk[6], (unsigned)SdDiagBlk[7],
+			(unsigned)SdDiagBlk[8], (unsigned)SdDiagBlk[9],
+			(unsigned)SdDiagBlk[10], (unsigned)SdDiagBlk[11]);
 	PutString(0, 1, sbuf, 0x2F);
-	{ int bl = StrLen(sbuf); PutString(bl, 1, "                    ", 0x2F); }
+	{ int bl = StrLen(sbuf); if (bl > 80) bl = 80; PutString(bl, 1, "                    ", 0x2F); }
 
 	BootStufe = 3;
 	// ==== initialize PS/2 keyboard

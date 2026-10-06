@@ -82,11 +82,15 @@ static u8 SdDiagBlock(u32 lba, u8 cmd)
 	oktok = (n < 50000) ? 1 : 0;
 	SdDiagTok = oktok ? 0xFE : 0x00;
 	SdDiagTokN = n;
-	u8 b[8];
-	for (int i = 0; i < 8; i++) b[i] = SdSpiByte(0xFF);
-	for (int i = 0; i < 8; i++) SdDiagBlk[i] = b[i];
-	// restliche Bytes weglassen (Dummy-Clocks, CRC):
-	for (int i = 0; i < 512 - 8 + 2; i++) SdSpiByte(0xFF);
+	// 3 Fenster: Anfang (0-3), Partitionstabellen-Start (446-449), Ende (508-511):
+	u8 b0[4]; u8 b1[4]; u8 b2[4];
+	for (int i = 0; i < 4; i++) b0[i] = SdSpiByte(0xFF);        // Sek[0..3]
+	for (int i = 4; i < 446; i++) SdSpiByte(0xFF);
+	for (int i = 0; i < 4; i++) b1[i] = SdSpiByte(0xFF);        // Sek[446..449]
+	for (int i = 450; i < 508; i++) SdSpiByte(0xFF);
+	for (int i = 0; i < 4; i++) b2[i] = SdSpiByte(0xFF);        // Sek[508..511]
+	SdSpiByte(0xFF); SdSpiByte(0xFF);                            // CRC
+	for (int i = 0; i < 4; i++) { SdDiagBlk[i]   = b0[i]; SdDiagBlk[4 + i] = b1[i]; SdDiagBlk[8 + i] = b2[i]; }
 	SdChipSelect(0);
 	return r1;
 }
