@@ -37,7 +37,7 @@ static volatile u32 SdDiagEcho = 0;
 static volatile int SdDiagN41 = -1;
 static volatile u8 SdDiagTyp = 0;
 static u32 SdDiagSec = 0;
-static volatile u8 SdDiagBlk[12] = {0,0,0,0,0,0,0,0,0,0,0,0}; // 3 Fenster à 4 Bytes (0-3 / 446-449 / 508-511)
+static volatile u8 SdDiagBlk[24];  // 0-15 = Sek[0..15], 16-19 = Sek[496..499], 20-23 = Sek[508..511]
 static volatile u8 SdDiagTok = 0;                      // ergebnis der Token-Suche (0xFE?)
 static volatile int SdDiagTokN = -1;                   // wie viele Bytes vor dem Token
 
@@ -98,12 +98,12 @@ static u8 SdDiagBlock(u32 lba)
 	SdDiagTok = oktok ? 0xFE : 0x00;
 	SdDiagTokN = n;
 	if (!oktok) { SdChipSelect(0); return r1; }   // kein Token: nur R1 melden
-	// 3 Fenster: Anfang (0-3), Partitionstabellen-Start (446-449), Ende (508-511):
-	for (int i = 0; i < 4; i++) SdDiagBlk[i] = SdSpiByte(0xFF);   // Sek[0..3]
-	for (int i = 4; i < 446; i++) SdSpiByte(0xFF);
-	for (int i = 4; i < 8; i++) SdDiagBlk[i] = SdSpiByte(0xFF);   // Sek[446..449]
-	for (int i = 450; i < 508; i++) SdSpiByte(0xFF);
-	for (int i = 8; i < 12; i++) SdDiagBlk[i] = SdSpiByte(0xFF);  // Sek[508..511]
+	// Sek[0..15]:
+	for (int i = 0; i < 16; i++) SdDiagBlk[i] = SdSpiByte(0xFF);
+	for (int i = 16; i < 496; i++) SdSpiByte(0xFF);                // Mitte weglassen
+	for (int i = 16; i < 20; i++) SdDiagBlk[i] = SdSpiByte(0xFF);  // Sek[496..499]
+	for (int i = 500; i < 508; i++) SdSpiByte(0xFF);
+	for (int i = 20; i < 24; i++) SdDiagBlk[i] = SdSpiByte(0xFF);  // Sek[508..511]
 	SdSpiByte(0xFF); SdSpiByte(0xFF);                              // CRC
 	SdChipSelect(0);
 	return r1;

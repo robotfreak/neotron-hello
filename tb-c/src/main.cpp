@@ -408,16 +408,20 @@ int main()
 	{ int bl = StrLen(sbuf); if (bl > 64) bl = 64; PutString(bl, 1, "                                                                  ", 0x2F); }
 	if (!SdOk)
 	{
-		// Zeile 3: die 3 Sektor-Fenster mit Leerzeichen (lesbar!)
-		MemPrint(sbuf, 150, "A: %02X %02X %02X %02X   P: %02X %02X %02X %02X   E: %02X %02X %02X %02X",
-			(unsigned)SdDiagBlk[0], (unsigned)SdDiagBlk[1],
-			(unsigned)SdDiagBlk[2], (unsigned)SdDiagBlk[3],
-			(unsigned)SdDiagBlk[4], (unsigned)SdDiagBlk[5],
-			(unsigned)SdDiagBlk[6], (unsigned)SdDiagBlk[7],
-			(unsigned)SdDiagBlk[8], (unsigned)SdDiagBlk[9],
-			(unsigned)SdDiagBlk[10], (unsigned)SdDiagBlk[11]);
+		// Zeile 3: Sektor[0..19] (der echte Stream-Inhalt!)
+		MemPrint(sbuf, 150, "S0: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X",
+			(unsigned)SdDiagBlk[0], (unsigned)SdDiagBlk[1], (unsigned)SdDiagBlk[2], (unsigned)SdDiagBlk[3],
+			(unsigned)SdDiagBlk[4], (unsigned)SdDiagBlk[5], (unsigned)SdDiagBlk[6], (unsigned)SdDiagBlk[7],
+			(unsigned)SdDiagBlk[8], (unsigned)SdDiagBlk[9], (unsigned)SdDiagBlk[10], (unsigned)SdDiagBlk[11],
+			(unsigned)SdDiagBlk[12], (unsigned)SdDiagBlk[13], (unsigned)SdDiagBlk[14], (unsigned)SdDiagBlk[15]);
 		PutString(0, 2, sbuf, 0x2F);
-		{ int bl = StrLen(sbuf); if (bl > 64) bl = 64; PutString(bl, 2, "                                                                  ", 0x2F); }
+		{ int bl = StrLen(sbuf); if (bl > 72) bl = 72; PutString(bl, 2, "                                                                        ", 0x2F); }
+		// Zeile 4: Sektor[496..511] (die Endsignatur-Position!)
+		MemPrint(sbuf, 150, "S496: %02X %02X %02X %02X   S508: %02X %02X %02X %02X",
+			(unsigned)SdDiagBlk[16], (unsigned)SdDiagBlk[17], (unsigned)SdDiagBlk[18], (unsigned)SdDiagBlk[19],
+			(unsigned)SdDiagBlk[20], (unsigned)SdDiagBlk[21], (unsigned)SdDiagBlk[22], (unsigned)SdDiagBlk[23]);
+		PutString(0, 3, sbuf, 0x2F);
+		{ int bl = StrLen(sbuf); if (bl > 72) bl = 72; PutString(bl, 3, "                                                                        ", 0x2F); }
 	}
 
 	BootStufe = 3;
