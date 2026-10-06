@@ -130,6 +130,11 @@ static int SdInit(void)
 	GPIO_Fnc(SD_SCK_PIN, GPIO_FNC_SPI);
 	GPIO_Fnc(SD_CS_PIN, GPIO_FNC_SIO);
 
+	// MISO-Pull-up (v11): der SD-DAT0-Treiber der Karte startet verzögert —
+	// ohne Pull-up liest der Anfang des Streams das Floating/Übersprechen
+	// als '55 AA'-Muster (beweisbar am Lochraster-Dump!)
+	GPIO_PullUp(SD_MISO_PIN);
+
 	GPIO_SetDirMask((1<<SD_CS_PIN), 1<<SD_CS_PIN);
 	GPIO_OutEnable(SD_CS_PIN);
 	SdChipSelect(0);
