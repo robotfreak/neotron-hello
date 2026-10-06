@@ -392,9 +392,8 @@ int main()
 		if (f16err == F16_ERR_OK)
 			SdOk = 1;
 		else SdDiagErr = 5;
-		// Diag: Roh-Block-Read-Test (unabhängig von fat16): CMD10+CMD17
-		rr1_10 = SdDiagBlock(0, 10);   // CSD-Lesung roh (wie SdSectors)
-		rr1_17 = SdDiagBlock(0, 17);   // Sektor-0-Lesung roh
+		// Diag: Roh-Sektor-Read (CMD17, mit Token — der CSD-Run verfälschte!)
+		rr1_17 = SdDiagBlock(0);
 	}
 	else SdDiagErr = 10;
 	char sbuf[160];

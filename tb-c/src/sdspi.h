@@ -71,26 +71,30 @@ static u8 SdCmdC(u8 cmd, u32 arg, u8 crc)
 static u8 SdCmd(u8 cmd, u32 arg) { return SdCmdC(cmd, arg, 0x95); }
 
 static u8 SdAcmd(u8 cmd, u32 arg) { SdCmd(55, 0); return SdCmd(cmd, arg); }
-// Diag-Dump-Read: CMD10/17 + Token + Bytes (ohne fat16-Ebene!)
-static u8 SdDiagBlock(u32 lba, u8 cmd)
+// Diag-Dump-Read (ohne fat16-Ebene): NUR CMD17 (Sektor-Read mit Token!)
+// — der CMD10-CSD-Run hat KEIN 0xFE-Token und verfälschte die Diag-Werte!
+static u8 SdDiagBlock(u32 lba)
 {
 	SdChipSelect(1);
-	u8 r1 = SdCmd(cmd, lba);
+	u8 r1 = SdCmd(17, lba);
 	u8 oktok = 0;
 	int n = 0;
-	while (n < 50000 && SdSpiByte(0xFF) != 0xFE) n++;
-	oktok = (n < 50000) ? 1 : 0;
+	while (n < 50000)
+	{
+		u8 b = SdSpiByte(0xFF);
+		if (b == 0xFE) { oktok = 1; break; }
+		n++;
+	}
 	SdDiagTok = oktok ? 0xFE : 0x00;
 	SdDiagTokN = n;
+	if (!oktok) { SdChipSelect(0); return r1; }   // kein Token: nur R1 melden
 	// 3 Fenster: Anfang (0-3), Partitionstabellen-Start (446-449), Ende (508-511):
-	u8 b0[4]; u8 b1[4]; u8 b2[4];
-	for (int i = 0; i < 4; i++) b0[i] = SdSpiByte(0xFF);        // Sek[0..3]
+	for (int i = 0; i < 4; i++) SdDiagBlk[i] = SdSpiByte(0xFF);   // Sek[0..3]
 	for (int i = 4; i < 446; i++) SdSpiByte(0xFF);
-	for (int i = 0; i < 4; i++) b1[i] = SdSpiByte(0xFF);        // Sek[446..449]
+	for (int i = 4; i < 8; i++) SdDiagBlk[i] = SdSpiByte(0xFF);   // Sek[446..449]
 	for (int i = 450; i < 508; i++) SdSpiByte(0xFF);
-	for (int i = 0; i < 4; i++) b2[i] = SdSpiByte(0xFF);        // Sek[508..511]
-	SdSpiByte(0xFF); SdSpiByte(0xFF);                            // CRC
-	for (int i = 0; i < 4; i++) { SdDiagBlk[i]   = b0[i]; SdDiagBlk[4 + i] = b1[i]; SdDiagBlk[8 + i] = b2[i]; }
+	for (int i = 8; i < 12; i++) SdDiagBlk[i] = SdSpiByte(0xFF);  // Sek[508..511]
+	SdSpiByte(0xFF); SdSpiByte(0xFF);                              // CRC
 	SdChipSelect(0);
 	return r1;
 }
@@ -186,7 +190,6 @@ static int SdInit(void)
 	}
 
 	// je je je je je je je je je je je je je je je je je je (der je je je je):
-	SPI_Init(SD_SPI, 500000);    // Diag-Stufe: 500 kHz — wenn der Byte-Versatz AUCH hier bleibt, ist es Verdrahtung/Kontakt, kein Timing
 
 	// je je je je je je je je je je je je je je je je je je:
 	SdDiagTyp = SdType;
