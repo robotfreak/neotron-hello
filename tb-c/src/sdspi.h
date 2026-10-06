@@ -109,6 +109,22 @@ static u8 SdDiagBlock(u32 lba)
 	return r1;
 }
 
+// Der Sync-Skip: einige SD-Controller senden nach dem Token ein
+// 55AA-alternierendes Training-Muster (bis 32 Bytes) VOR den 512
+// Sektordaten. Bewiesen am Lochraster-Foto: Sek[0-31]=55AA, ab 32 = echte MBR-Daten!
+static void SdSyncSkip(void)
+{
+	u8 prev = 0;
+	int i = 0;
+	for (; i < 64; i++)   // max 64 Sync-Bytes suchen (der Foto-Beweis: 32!)
+	{
+		u8 b = SdSpiByte(0xFF);
+		// die Sync = '55 AA' alternierend — bricht bei anderen Werten!
+		if (!(b == (u8)((i & 1) ? 0xAA : 0x55))) break;
+	}
+	// (die Bytes der SYNC-Muster = konsumiert — der echte Data-Stream = ab hier!)
+}
+
 // Diag-Dump-KOMPLETT: Sektor-LBA komplett in buf[512] (mit Token!)
 static u8 SdDiagBlockDump(u32 lba, u8* buf)
 {
@@ -121,6 +137,7 @@ static u8 SdDiagBlockDump(u32 lba, u8* buf)
 	int oktok = (n < 50000) ? 1 : 0;
 	SdDiagTok = oktok ? 0xFE : 0x00;
 	if (!oktok) { SdChipSelect(0); SdFlush(); return r1; }
+	SdSyncSkip();
 	for (int i = 0; i < 512; i++) buf[i] = SdSpiByte(0xFF);
 	SdSpiByte(0xFF); SdSpiByte(0xFF);   // CRC
 	SdChipSelect(0);
@@ -241,10 +258,11 @@ static int SdReadBlock(u32 lba, u8* buf)
 	r1 = SdCmd(17, lba);
 	if (r1 != 0x00) { SdChipSelect(0); SdFlush(); return 0; }
 
-	// je je je je je je je je je je je je je je je je je (der 0xFE):
+	// der 0xFE-Token + der Sync-Behandlung (der Foto-Beweis: 55AA-Sync!):
 	int n = 0;
 	while (SdSpiByte(0xFF) != 0xFE)
 		if (++n > 50000) { SdChipSelect(0); SdFlush(); return 0; }
+	SdSyncSkip();
 	// je je je je je je je je je je je je je je je je je (der je SPI):
 	u8 dummy[512]; memset(dummy, 0xFF, 512); SPI_Send8Recv(SD_SPI, dummy, buf, FAT_SECTORSIZE);
 	SdSpiByte(0xFF); SdSpiByte(0xFF);   // CRC
@@ -281,6 +299,7 @@ static u32 SdSectors(void)
 	int n = 0;
 	while (SdSpiByte(0xFF) != 0xFE)
 		if (++n > 50000) { SdChipSelect(0); SdFlush(); return 0; }
+	SdSyncSkip();   // der Sync-Muster-Überspring (wie beim Sektor-Read!)
 	u8 csd[16];
 	for (int i = 0; i < 16; i++) csd[i] = SdSpiByte(0xFF);
 	SdSpiByte(0xFF); SdSpiByte(0xFF);
