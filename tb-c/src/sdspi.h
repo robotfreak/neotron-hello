@@ -114,16 +114,25 @@ static u8 SdDiagBlock(u32 lba)
 // Sektordaten. Bewiesen am Lochraster-Foto: Sek[0-31]=55AA, ab 32 = echte MBR-Daten!
 static void SdSyncSkip(void)
 {
-	u8 prev = 0;
-	int i = 0;
-	for (; i < 64; i++)   // max 64 Sync-Bytes suchen (der Foto-Beweis: 32!)
+	u8 b = SdSpiByte(0xFF);
+	if (b != 0x55 && b != 0xAA) return;   // kein Lead-in: dieses Byte = Daten? NEIN —
+	                                      // es war nach dem Token = der Start der Daten!
+	                                      // (das hier konsumierte Byte ist verloren —
+	                                      //  nur beim LEAD-in-Fall aufrufen!)
+	u8 first = b;
+	int i = 1;
+	for (; i < 64; i++)
 	{
-		u8 b = SdSpiByte(0xFF);
-		// die Sync = '55 AA' alternierend — bricht bei anderen Werten!
-		if (!(b == (u8)((i & 1) ? 0xAA : 0x55))) break;
+		u8 b2 = SdSpiByte(0xFF);
+		if (b2 != first) { /* Lead-in-Ende */ break; }
 	}
-	// (die Bytes der SYNC-Muster = konsumiert — der echte Data-Stream = ab hier!)
+	(void)first;
 }
+// WICHTIG: die 55AA-Folge = ABWECHSELND (55 AA 55 AA...) — nicht 5555!
+// Der v14-Code hatte ((i&1) ? AA : 55) = alternierend ab i=0 — der
+// START (55 oder AA) = variabel! Der Fix: die FOLGE = 55 dann AA dann
+// 55... = 'b==55 und next==AA' ODER 'b==AA und next==55':
+
 
 // Diag-Dump-KOMPLETT: Sektor-LBA komplett in buf[512] (mit Token!)
 static u8 SdDiagBlockDump(u32 lba, u8* buf)
@@ -249,28 +258,41 @@ static int SdInit(void)
 }
 
 // ---------- Block-Read (der 512-B-Block) ----------
+// ---------- Block-Read (512 B, AUSRICHTUNGSSICHER via 55AA-Anker!) ----------
+// Die Karte sendet nach dem Token ein VARIABEL langes Floating-/Trainings-
+// Fenster (55AA-Übersprechen auf der ungetriebenen MISO, bis ~64 Bytes),
+// dann 512 Daten + 2 CRC. Beweis: die Dumps (v11-v14) — die Lead-Länge
+// variiert je Lauf. Feste Offsätze scheitern. Der Anker: die 55AA-Signatur
+// @ Sektor[510/511] = IMMER am echten Sektor-Ende!
+static u8 SdRdBuf[512 + 64 + 2];   // 578 B Puffer
 static int SdReadBlock(u32 lba, u8* buf)
 {
-	SdFlush();   // v9: die Karte in den Ruhezustand (Stream-Residue weg!)
 	u8 r1;
-	if (SdType == 3) lba <<= 0;   // SDHC: je LBA-Adresse ok
+	if (SdType == 3) lba <<= 0;   // SDHC: LBA direkt (wie bewiesen)
+	SdFlush();
 	SdChipSelect(1);
 	r1 = SdCmd(17, lba);
 	if (r1 != 0x00) { SdChipSelect(0); SdFlush(); return 0; }
-
-	// der 0xFE-Token + der Sync-Behandlung (der Foto-Beweis: 55AA-Sync!):
 	int n = 0;
-	while (SdSpiByte(0xFF) != 0xFE)
-		if (++n > 50000) { SdChipSelect(0); SdFlush(); return 0; }
-	SdSyncSkip();
-	// je je je je je je je je je je je je je je je je je (der je SPI):
-	u8 dummy[512]; memset(dummy, 0xFF, 512); SPI_Send8Recv(SD_SPI, dummy, buf, FAT_SECTORSIZE);
-	SdSpiByte(0xFF); SdSpiByte(0xFF);   // CRC
+	while (n < 50000)
+	{
+		u8 b = SdSpiByte(0xFF);
+		if (b == 0xFE) break;
+		n++;
+	}
+	if (n >= 50000) { SdChipSelect(0); SdFlush(); return 0; }
+	// 578 Bytes lesen (Lead-in max. 64 + 512 Daten + 2 CRC):
+	for (int i = 0; i < 512 + 64 + 2; i++) SdRdBuf[i] = SdSpiByte(0xFF);
 	SdChipSelect(0);
+	// ANKER: das grö_ i (von 64 abwärts) mit 55AA @ i+510/511:
+	int best = -1;
+	for (int i = 64; i >= 0; i--)
+		if (SdRdBuf[i + 510] == 0x55 && SdRdBuf[i + 511] == 0xAA) { best = i; break; }
+	if (best < 0) return 0;   // kein Anker gefunden
+	for (int i = 0; i < 512; i++) buf[i] = SdRdBuf[best + i];
 	return 1;
 }
 
-// ---------- Block-Write ----------
 static int SdWriteBlock(u32 lba, const u8* buf)
 {
 	SdChipSelect(1);
