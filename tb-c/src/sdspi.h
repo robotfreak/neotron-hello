@@ -160,7 +160,7 @@ static int SdInit(void)
 	}
 
 	// je je je je je je je je je je je je je je je je je je (der je je je je):
-	SPI_Init(SD_SPI, 8000000);
+	SPI_Init(SD_SPI, 2000000);   // Lochraster: 8 MHz zu schnell für lange Bahnen (bewiesen: SEKTOR-Reads tot, kurze CMDs ok)
 
 	// je je je je je je je je je je je je je je je je je je:
 	SdDiagTyp = SdType;
