@@ -37,6 +37,9 @@ static volatile u32 SdDiagEcho = 0;
 static volatile int SdDiagN41 = -1;
 static volatile u8 SdDiagTyp = 0;
 static u32 SdDiagSec = 0;
+static volatile u8 SdDiagBlk[8] = {0,0,0,0,0,0,0,0};   // erste 8 B des Sektor-0-Read-Dumps
+static volatile u8 SdDiagTok = 0;                      // ergebnis der Token-Suche (0xFE?)
+static volatile int SdDiagTokN = -1;                   // wie viele Bytes vor dem Token
 
 // ---------- SPI-Basis (die PicoLibSDK-SPI0 direkt) ----------
 static inline void SdChipSelect(int on) { GPIO_Out(SD_CS_PIN, on ? 0 : 1); }
@@ -68,6 +71,25 @@ static u8 SdCmdC(u8 cmd, u32 arg, u8 crc)
 static u8 SdCmd(u8 cmd, u32 arg) { return SdCmdC(cmd, arg, 0x95); }
 
 static u8 SdAcmd(u8 cmd, u32 arg) { SdCmd(55, 0); return SdCmd(cmd, arg); }
+// Diag-Dump-Read: CMD10/17 + Token + Bytes (ohne fat16-Ebene!)
+static u8 SdDiagBlock(u32 lba, u8 cmd)
+{
+	SdChipSelect(1);
+	u8 r1 = SdCmd(cmd, lba);
+	u8 oktok = 0;
+	int n = 0;
+	while (n < 50000 && SdSpiByte(0xFF) != 0xFE) n++;
+	oktok = (n < 50000) ? 1 : 0;
+	SdDiagTok = oktok ? 0xFE : 0x00;
+	SdDiagTokN = n;
+	u8 b[8];
+	for (int i = 0; i < 8; i++) b[i] = SdSpiByte(0xFF);
+	for (int i = 0; i < 8; i++) SdDiagBlk[i] = b[i];
+	// restliche Bytes weglassen (Dummy-Clocks, CRC):
+	for (int i = 0; i < 512 - 8 + 2; i++) SdSpiByte(0xFF);
+	SdChipSelect(0);
+	return r1;
+}
 
 // ---------- Init ----------
 static int SdInit(void)

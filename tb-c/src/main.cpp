@@ -382,6 +382,7 @@ int main()
 	SdOk = 0;
 	SdDiagErr = 0;
 	int f16err = -99;
+	int rr1_17 = 0x55, rr1_10 = 0x55;   // diag (0x55 = 'nicht gemessen')
 	if (SdInit() == 0)
 	{
 		fat.io.read_block = SdReadBlock;
@@ -391,6 +392,9 @@ int main()
 		if (f16err == F16_ERR_OK)
 			SdOk = 1;
 		else SdDiagErr = 5;
+		// Diag: Roh-Block-Read-Test (unabhängig von fat16): CMD10+CMD17
+		rr1_10 = SdDiagBlock(0, 10);   // CSD-Lesung roh (wie SdSectors)
+		rr1_17 = SdDiagBlock(0, 17);   // Sektor-0-Lesung roh
 	}
 	else SdDiagErr = 10;
 	char sbuf[80];
@@ -398,10 +402,11 @@ int main()
 		MemPrint(sbuf, 80, "SD: OK  %lu MB (FAT16/32, SAVE/LOAD bereit)  ",
 			(unsigned long)(SdDiagSec / 2048));
 	else
-		MemPrint(sbuf, 80, "SD: FEHLT  E=%d F16=%d R1=%02X %02X %02X N41=%d ECHO=%08lX M=%lu ",
-			(int)SdDiagErr, f16err, (unsigned)SdDiagR1_0, (unsigned)SdDiagR1_8,
-			(unsigned)SdDiagR1_41, (int)SdDiagN41, (unsigned long)SdDiagEcho,
-			(unsigned long)SdDiagSec);
+		MemPrint(sbuf, 80, "SD: FEHLT  E=%d F16=%d N41=%d M=%lu R17=%02X T=%02X N=%d %02X %02X %02X %02X ",
+			(int)SdDiagErr, f16err, (int)SdDiagN41, (unsigned long)SdDiagSec,
+			(unsigned)rr1_17, (unsigned)SdDiagTok, (int)SdDiagTokN,
+			(unsigned)SdDiagBlk[0], (unsigned)SdDiagBlk[1],
+			(unsigned)SdDiagBlk[2], (unsigned)SdDiagBlk[3]);
 	PutString(0, 1, sbuf, 0x2F);
 	{ int bl = StrLen(sbuf); PutString(bl, 1, "                    ", 0x2F); }
 
