@@ -408,20 +408,25 @@ int main()
 	{ int bl = StrLen(sbuf); if (bl > 64) bl = 64; PutString(bl, 1, "                                                                  ", 0x2F); }
 	if (!SdOk)
 	{
-		// Zeile 3: Sektor[0..19] (der echte Stream-Inhalt!)
-		MemPrint(sbuf, 150, "S0: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X",
-			(unsigned)SdDiagBlk[0], (unsigned)SdDiagBlk[1], (unsigned)SdDiagBlk[2], (unsigned)SdDiagBlk[3],
-			(unsigned)SdDiagBlk[4], (unsigned)SdDiagBlk[5], (unsigned)SdDiagBlk[6], (unsigned)SdDiagBlk[7],
-			(unsigned)SdDiagBlk[8], (unsigned)SdDiagBlk[9], (unsigned)SdDiagBlk[10], (unsigned)SdDiagBlk[11],
-			(unsigned)SdDiagBlk[12], (unsigned)SdDiagBlk[13], (unsigned)SdDiagBlk[14], (unsigned)SdDiagBlk[15]);
-		PutString(0, 2, sbuf, 0x2F);
-		{ int bl = StrLen(sbuf); if (bl > 72) bl = 72; PutString(bl, 2, "                                                                        ", 0x2F); }
-		// Zeile 4: Sektor[496..511] (die Endsignatur-Position!)
-		MemPrint(sbuf, 150, "S496: %02X %02X %02X %02X   S508: %02X %02X %02X %02X",
-			(unsigned)SdDiagBlk[16], (unsigned)SdDiagBlk[17], (unsigned)SdDiagBlk[18], (unsigned)SdDiagBlk[19],
-			(unsigned)SdDiagBlk[20], (unsigned)SdDiagBlk[21], (unsigned)SdDiagBlk[22], (unsigned)SdDiagBlk[23]);
-		PutString(0, 3, sbuf, 0x2F);
-		{ int bl = StrLen(sbuf); if (bl > 72) bl = 72; PutString(bl, 3, "                                                                        ", 0x2F); }
+		// der KOMPLETTE Sektor-Dump der Diag-Read (32 Zeilen je 16 Bytes
+		// + der Offset) — der Scroll-Dump nach dem Banner:
+		PutString(0, 2, "SD-DUMP SEKTOR 0:", 0x2F);
+		ConsoleChar('\n');
+		static u8 dump[512];
+		SdFlush();
+		SdDiagBlockDump(0, dump);   // liest Sek 0 KOMPLETT in dump[]
+		static const char* HEX = "0123456789ABCDEF";
+		for (int row = 0; row < 32; row++)
+		{
+			// der Offset ("000-00F:"-Stil, 5 Zeichen):
+			ConsoleChar(HEX[(row >> 4) & 15]); ConsoleChar(HEX[row & 15]); ConsoleChar(':');
+			for (int c = 0; c < 16; c++)
+			{
+				u8 b = dump[row * 16 + c];
+				ConsoleChar(HEX[b >> 4]); ConsoleChar(HEX[b & 15]); ConsoleChar(' ');
+			}
+			ConsoleChar('\n');
+		}
 	}
 
 	BootStufe = 3;

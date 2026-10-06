@@ -109,6 +109,24 @@ static u8 SdDiagBlock(u32 lba)
 	return r1;
 }
 
+// Diag-Dump-KOMPLETT: Sektor-LBA komplett in buf[512] (mit Token!)
+static u8 SdDiagBlockDump(u32 lba, u8* buf)
+{
+	SdFlush();
+	SdChipSelect(1);
+	u8 r1 = SdCmd(17, lba);
+	if (r1 != 0x00) { SdChipSelect(0); return r1; }
+	int n = 0;
+	while (n < 50000 && SdSpiByte(0xFF) != 0xFE) { n++; SdDiagTokN = n; }
+	int oktok = (n < 50000) ? 1 : 0;
+	SdDiagTok = oktok ? 0xFE : 0x00;
+	if (!oktok) { SdChipSelect(0); SdFlush(); return r1; }
+	for (int i = 0; i < 512; i++) buf[i] = SdSpiByte(0xFF);
+	SdSpiByte(0xFF); SdSpiByte(0xFF);   // CRC
+	SdChipSelect(0);
+	return r1;
+}
+
 // ---------- Init ----------
 static int SdInit(void)
 {
