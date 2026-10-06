@@ -37,7 +37,7 @@ static volatile u32 SdDiagEcho = 0;
 static volatile int SdDiagN41 = -1;
 static volatile u8 SdDiagTyp = 0;
 static u32 SdDiagSec = 0;
-static volatile u8 SdDiagBlk[8] = {0,0,0,0,0,0,0,0};   // erste 8 B des Sektor-0-Read-Dumps
+static volatile u8 SdDiagBlk[12] = {0,0,0,0,0,0,0,0,0,0,0,0}; // 3 Fenster à 4 Bytes (0-3 / 446-449 / 508-511)
 static volatile u8 SdDiagTok = 0;                      // ergebnis der Token-Suche (0xFE?)
 static volatile int SdDiagTokN = -1;                   // wie viele Bytes vor dem Token
 
