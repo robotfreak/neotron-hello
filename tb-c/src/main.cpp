@@ -23,9 +23,9 @@
 #include "sdspi.h"
 #include "fat16.h"
 
-// halt on error, blinking LED (Adafruit Feather RP2350 HSTX: LED = GPIO7)
+// LED: onboard-LED des Pico 2 (non-W) = GP25 (kein CYW43!)
 #undef LED_PIN
-#define LED_PIN 7
+#define LED_PIN 25
 #define CHECK_ERR() while (res != DISPHSTX_ERR_OK) { GPIO_Flip(LED_PIN); WaitMs(100); }
 
 // ==== CGA-16 palette: COLOR16(G_t, B_t, R_t) - channel rotation proof
@@ -138,8 +138,8 @@ static void BasOutHook(char ch) { ConsoleChar(ch); }
 
 // ==== PS/2 keyboard (Set-2 scan codes, GPIO bit-bang via IRQ)
 // GP0 = clock (falling edge IRQ), GP1 = data
-#define PS2_CLK_PIN		0
-#define PS2_DAT_PIN		1
+#define PS2_CLK_PIN		3
+#define PS2_DAT_PIN		2
 
 static volatile int IrqCount = 0;	// IRQ-Feuer-Zähler (Diagnose)
 static volatile u8 Ps2Bit = 0;
@@ -369,7 +369,7 @@ int main()
 
 	// ==== welcome banner (weiß auf blau)
 	for (int col = 0; col < TEXTCOLS; col++) PutCharAt(col, 0, ' ', 0x1F);
-	PutString(1, 0, " TINYBASIC 80x30  C-Port  -  Pico 2W HSTX ", 0x1F);
+	PutString(1, 0, " TINYBASIC 80x30  C-Port  -  Pico 2 HSTX ", 0x1F);
 	CurRow = 2;
 	for (unsigned i = 0; i < sizeof(Welcome)/sizeof(Welcome[0]); i++)
 	{
@@ -407,10 +407,10 @@ int main()
 	GPIO_PullUp(PS2_CLK_PIN);
 	GPIO_PullUp(PS2_DAT_PIN);
 
-	// LED (Feather: GPIO7)
-	GPIO_Init(7);
-	GPIO_OutEnable(7);
-	GPIO_Out(7, 0);
+	// LED (Pico 2: GP25 = onboard)
+	GPIO_Init(LED_PIN);
+	GPIO_OutEnable(LED_PIN);
+	GPIO_Out(LED_PIN, 0);
 
 	// attach IRQ callback on falling clock edge
 	GPIO_IRQSetCallback(Ps2Irq);
@@ -440,7 +440,7 @@ int main()
 
 		// LED-Lebenszeichen
 		ledtimer++;
-		GPIO_Out(7, (ledtimer >= 90) ? 1 : 0);
+		GPIO_Out(LED_PIN, (ledtimer >= 90) ? 1 : 0);
 		if (ledtimer >= 120) ledtimer = 0;
 
 		// Diagnose: Boot-Marken zyklisch ueber USB (alle 2 s = 120 Frames)

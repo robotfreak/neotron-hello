@@ -51,7 +51,14 @@ im Workshop-Log / README der TEXTDEMO-Umgebung):
 - WiFi-Phase 2 (Pico 2W: Telnet/Remote-BASIC, BBS-Mailbox) - eigenes Projekt
 - Neotron-PCB-HSTX→VGA-Adapter (spätere PCB-Rev)
 
-## Pico 2W-Port (bewiesen am Board, 30.09.2026)
+## Pico 2 (non-W) Lochraster-Stand (06.10.2026 — AKTUELL)
+- **SD auf SPI1-Familie:** MISO=GP8, CS=GP9, SCK=GP10, MOSI=GP11 — ALLE
+  funcsel 1 = spi1_* (bewiesen aus io_bank0.h RP2350). SD_SPI=1.
+- **PS/2:** CLK=GP3, DAT=GP2 (Maus-option: GP4/GP5, noch nicht im Code)
+- **LED:** GP25 = onboard-LED des Pico 2 (kein CYW43, kein Konflikt-Fallstrick)
+- Backplane-Steckverbinder geplant: Modem-Controller (UART), MIDI, Sound
+
+## Pico 2W-Port (bewiesen am Board, 30.09.2026, ARCHIV)
 Umstieg Feather RP2350 → Pico 2W (Lochraster-Aufbau):
 - **SD-MOSI GP23→GP3** (GP23-29 intern am CYW43; funcsel-Tabelle bewies:
   GP3=spi0_tx funcsel 1). CS=GP5, SCK=GP22, MISO=GP20 bleiben.
