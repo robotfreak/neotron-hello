@@ -401,19 +401,24 @@ int main()
 		MemPrint(sbuf, 150, "SD: OK  %lu MB (FAT16/32, SAVE/LOAD bereit)  ",
 			(unsigned long)(SdDiagSec / 2048));
 	else
-		MemPrint(sbuf, 150, "SD: FEHLT E=%d F16=%d M=%lu R17=%02X T=%02X N=%d "
-			"A:%02X%02X%02X%02X P:%02X%02X%02X%02X E:%02X%02X"
-			"%02X%02X ",
-			(int)SdDiagErr, f16err, (int)SdDiagN41, (unsigned long)SdDiagSec,
-			(unsigned)rr1_17, (unsigned)SdDiagTok, (int)SdDiagTokN,
+		MemPrint(sbuf, 150, "SD: FEHLT E=%d F=%d M=%lX R=%02X T=%02X N=%d",
+			(int)SdDiagErr, f16err, (unsigned long)SdDiagSec,
+			(unsigned)rr1_17, (unsigned)SdDiagTok, (int)SdDiagTokN);
+	PutString(0, 1, sbuf, 0x2F);
+	{ int bl = StrLen(sbuf); if (bl > 64) bl = 64; PutString(bl, 1, "                                                                  ", 0x2F); }
+	if (!SdOk)
+	{
+		// Zeile 3: die 3 Sektor-Fenster mit Leerzeichen (lesbar!)
+		MemPrint(sbuf, 150, "A: %02X %02X %02X %02X   P: %02X %02X %02X %02X   E: %02X %02X %02X %02X",
 			(unsigned)SdDiagBlk[0], (unsigned)SdDiagBlk[1],
 			(unsigned)SdDiagBlk[2], (unsigned)SdDiagBlk[3],
 			(unsigned)SdDiagBlk[4], (unsigned)SdDiagBlk[5],
 			(unsigned)SdDiagBlk[6], (unsigned)SdDiagBlk[7],
 			(unsigned)SdDiagBlk[8], (unsigned)SdDiagBlk[9],
 			(unsigned)SdDiagBlk[10], (unsigned)SdDiagBlk[11]);
-	PutString(0, 1, sbuf, 0x2F);
-	{ int bl = StrLen(sbuf); if (bl > 80) bl = 80; PutString(bl, 1, "                    ", 0x2F); }
+		PutString(0, 2, sbuf, 0x2F);
+		{ int bl = StrLen(sbuf); if (bl > 64) bl = 64; PutString(bl, 2, "                                                                  ", 0x2F); }
+	}
 
 	BootStufe = 3;
 	// ==== initialize PS/2 keyboard
