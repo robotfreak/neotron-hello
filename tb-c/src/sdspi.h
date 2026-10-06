@@ -186,7 +186,7 @@ static int SdInit(void)
 	}
 
 	// je je je je je je je je je je je je je je je je je je (der je je je je):
-	SPI_Init(SD_SPI, 2000000);   // Lochraster: 8 MHz zu schnell für lange Bahnen (bewiesen: SEKTOR-Reads tot, kurze CMDs ok)
+	SPI_Init(SD_SPI, 500000);    // Diag-Stufe: 500 kHz — wenn der Byte-Versatz AUCH hier bleibt, ist es Verdrahtung/Kontakt, kein Timing
 
 	// je je je je je je je je je je je je je je je je je je:
 	SdDiagTyp = SdType;
