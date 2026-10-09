@@ -8,6 +8,8 @@ set(CMAKE_CXX_STANDARD 17)
 
 pico_sdk_init()
 
+set(DIAG_USB 0 CACHE STRING "1=USB-stdio für Diagnose")
+
 add_executable(bbs_client
     src/main.cpp
 )
@@ -32,6 +34,6 @@ target_link_libraries(bbs_client
 )
 
 pico_enable_stdio_usb(bbs_client 0)
-pico_enable_stdio_uart(bbs_client 0)
+pico_enable_stdio_uart(bbs_client 1)
 
 pico_add_extra_outputs(bbs_client)

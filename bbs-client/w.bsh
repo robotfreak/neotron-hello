@@ -1,0 +1,10 @@
+#!/bin/bash
+# BOOTDIAG build (UART0 GP0 TX 115200): bash w.bsh "<SSID>" "<PASSWORT>"
+SSID="${1:-}"; PWDW="${2:-}"
+[ -z "$SSID" ] && { echo "Usage: bash w.bsh <SSID> <PASSWORT>"; exit 1; }
+cd "$(dirname "$0")"
+cp src/main_bd.cpp src/main.cpp
+PICO_SDK_PATH=$HOME/neotron-hello/pico-sdk cmake -B build -DPICO_BOARD=pico2_w \
+    -DWIFI_SSID="$SSID" -DWIFI_PASSWORD="$PWDW" > /dev/null
+PICO_SDK_PATH=$HOME/neotron-hello/pico-sdk cmake --build build -j$(nproc) 2>&1 | grep -E "error|Fehler" | head -6
+ls -la build/bbs_client.uf2 2>/dev/null && echo "OK"
